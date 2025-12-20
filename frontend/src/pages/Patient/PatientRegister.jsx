@@ -1,11 +1,16 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PatientRegisterNavbar from "./PatientRegisterNavbar";
+import PatientFooter from "../../patientComponent/PatientFooter";
+import { FaUser, FaEnvelope, FaPhone, FaBirthdayCake, FaLock, FaCheckCircle } from "react-icons/fa";
+import { usePatientAuth } from "../../contexts/PatientContext";
 
 const PatientRegister = () => {
   const [form, setForm] = useState({ name: '', email: '', phone: '', age: '', password: '', confirmPassword: '' });
+  const [showPasswordRules, setShowPasswordRules] = useState(false);
   const navigate = useNavigate();
-  const API_URL = import.meta?.env?.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:3000';
+  const { login } = usePatientAuth();
+  const API_URL = import.meta?.env?.VITE_API_URL || 'http://localhost:3000';
 
   const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -32,9 +37,8 @@ const PatientRegister = () => {
         alert(data.message || 'Registration failed');
         return;
       }
-      // store token and redirect
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('role', 'patient');
+      // use context login to store token/profile
+      login(data.data.token, data.data.patient);
       navigate(data.data.redirectTo || '/patient/dashboard');
     } catch (err) {
       console.error('Register error', err);
@@ -44,149 +48,122 @@ const PatientRegister = () => {
 
   return (
     <>
-      {/* Navbar */}
       <PatientRegisterNavbar />
 
-      {/* Page Wrapper */}
-      <div className="min-h-screen flex items-center justify-center bg-green-50 px-4 pt-24">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6 sm:p-8">
-          
-          {/* Heading */}
-          <h2 className="text-2xl font-bold text-center text-gray-800">
-            Patient Signup
-          </h2>
-          <p className="text-center text-sm text-gray-500 mt-1">
-            Create your account to consult doctors
-          </p>
+      <main className="min-h-screen bg-green-50 flex flex-col pt-16">
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left - Branding / Benefits */}
+            <section className="hidden md:flex flex-col justify-center gap-6 bg-white rounded-xl shadow-lg p-8">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <FaCheckCircle className="text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">Welcome to DocConnect</h3>
+              </div>
+              <p className="text-gray-600">
+                Quick and secure access to trusted doctors. Create your patient account to book appointments, chat with your doctor, and manage health records.
+              </p>
 
-          {/* Form */}
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-600">
-                Full Name
-              </label>
-              <input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                type="text"
-                placeholder="Enter your full name"
-                className="w-full mt-1 px-4 py-2 border rounded-md
-                           focus:outline-none focus:ring-2 focus:ring-green-400"
-                required
-              />
-            </div>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-3">
+                  <span className="text-green-600 mt-1">•</span>
+                  <span>Book video or in-person appointments</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-green-600 mt-1">•</span>
+                  <span>Secure chat with your care team</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-green-600 mt-1">•</span>
+                  <span>Store your medical history safely</span>
+                </li>
+              </ul>
 
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-600">
-                Email
-              </label>
-              <input
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                type="email"
-                placeholder="Enter your email"
-                className="w-full mt-1 px-4 py-2 border rounded-md
-                           focus:outline-none focus:ring-2 focus:ring-green-400"
-                required
-              />
-            </div>
+              <div className="mt-auto text-sm text-gray-500">
+                Already registered? <Link to="/" className="text-green-600 font-medium hover:underline">Sign in</Link>
+              </div>
+            </section>
 
-            {/* Phone */}
-            <div>
-              <label className="block text-sm font-medium text-gray-600">
-                Phone Number
-              </label>
-              <input
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-                type="tel"
-                placeholder="Enter phone number"
-                className="w-full mt-1 px-4 py-2 border rounded-md
-                           focus:outline-none focus:ring-2 focus:ring-green-400"
-                required
-              />
-            </div>
+            {/* Right - Form */}
+            <section className="bg-white rounded-xl shadow-lg p-6 md:p-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-1 text-center md:text-left">Create your Patient Account</h2>
+              <p className="text-sm text-gray-500 mb-6 text-center md:text-left">Register to book appointments and chat with doctors</p>
 
-            {/* Age */}
-            <div>
-              <label className="block text-sm font-medium text-gray-600">
-                Age
-              </label>
-              <input
-                name="age"
-                value={form.age}
-                onChange={handleChange}
-                type="number"
-                min="0"
-                placeholder="Your age"
-                className="w-full mt-1 px-4 py-2 border rounded-md
-                           focus:outline-none focus:ring-2 focus:ring-green-400"
-                required
-              />
-            </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="w-full">
+                    <div className="text-sm text-gray-600 mb-1 flex items-center gap-2"><FaUser className="text-green-500" /> Full Name</div>
+                    <input name="name" value={form.name} onChange={handleChange} required className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-400" placeholder="Your full name" />
+                  </label>
 
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-600">
-                Password
-              </label>
-              <input
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                type="password"
-                placeholder="Create password"
-                className="w-full mt-1 px-4 py-2 border rounded-md
-                           focus:outline-none focus:ring-2 focus:ring-green-400"
-                required
-              />
-            </div>
+                  <label className="w-full">
+                    <div className="text-sm text-gray-600 mb-1 flex items-center gap-2"><FaEnvelope className="text-green-500" /> Email</div>
+                    <input name="email" value={form.email} onChange={handleChange} type="email" required className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-400" placeholder="you@example.com" />
+                  </label>
+                </div>
 
-            {/* Confirm Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-600">
-                Confirm Password
-              </label>
-              <input
-                name="confirmPassword"
-                value={form.confirmPassword}
-                onChange={handleChange}
-                type="password"
-                placeholder="Confirm password"
-                className="w-full mt-1 px-4 py-2 border rounded-md
-                           focus:outline-none focus:ring-2 focus:ring-green-400"
-                required
-              />
-            </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label>
+                    <div className="text-sm text-gray-600 mb-1 flex items-center gap-2"><FaPhone className="text-green-500" /> Phone</div>
+                    <input name="phone" value={form.phone} onChange={handleChange} type="tel" required className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-400" placeholder="+1 (555) 123-4567" />
+                  </label>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="w-full bg-green-500 text-white py-2 rounded-md
-                         font-semibold hover:bg-green-600 transition"
-            >
-              Sign Up
-            </button>
-          </form>
+                  <label>
+                    <div className="text-sm text-gray-600 mb-1 flex items-center gap-2"><FaBirthdayCake className="text-green-500" /> Age</div>
+                    <input name="age" value={form.age} onChange={handleChange} type="number" min="0" required className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-400" placeholder="Age" />
+                  </label>
+                </div>
 
-          {/* Footer */}
-          <p className="text-center text-sm text-gray-500 mt-4">
-            Already have an account?{" "}
-            <Link
-              to="/"
-              className="text-green-600 font-semibold hover:underline"
-            >
-              Sign In
-            </Link>
-          </p>
+                <div>
+                  <label className="text-sm text-gray-600 mb-1 flex items-center gap-2"><FaLock className="text-green-500" /> Password</label>
+                  <input
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    type="password"
+                    placeholder="Create a password"
+                    required
+                    onFocus={() => setShowPasswordRules(true)}
+                    onBlur={() => setShowPasswordRules(false)}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-400"
+                  />
+                  {showPasswordRules && (
+                    <ul className="mt-2 text-xs text-gray-500 list-disc list-inside">
+                      <li>At least 8 characters</li>
+                      <li>Include letters and numbers</li>
+                      <li>Avoid common passwords</li>
+                    </ul>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm text-gray-600 mb-1 flex items-center gap-2"><FaLock className="text-green-500" /> Confirm Password</label>
+                  <input
+                    name="confirmPassword"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                    type="password"
+                    placeholder="Confirm password"
+                    required
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-400"
+                  />
+                </div>
+
+                <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold hover:bg-green-700 transition mt-2">
+                  Create Account
+                </button>
+
+                <div className="text-center text-sm text-gray-500">
+                  By creating an account you agree to our <Link to="/terms" className="text-green-600 hover:underline">Terms</Link> and <Link to="/privacy" className="text-green-600 hover:underline">Privacy Policy</Link>.
+                </div>
+              </form>
+            </section>
+          </div>
         </div>
-      </div>
+
+        <PatientFooter />
+      </main>
     </>
   );
 };

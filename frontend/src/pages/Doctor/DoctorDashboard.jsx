@@ -9,8 +9,8 @@ import {
   Phone, Bell, TrendingUp, Activity,
   Users, Stethoscope, BarChart, Target
 } from 'lucide-react';
-import { DoctorProvider, useDoctor } from '../../contexts/DoctorContext'; // <-- added
-
+import { useDoctor } from '../../contexts/DoctorContext';
+ 
 function DashboardContent() {
   const { doctor, loading, isAuthenticated } = useDoctor();
 
@@ -334,9 +334,5 @@ function DashboardContent() {
 }
 
 export default function DoctorDashboard() {
-  return (
-    <DoctorProvider>
-      <DashboardContent />
-    </DoctorProvider>
-  );
+  return <DashboardContent />;
 }

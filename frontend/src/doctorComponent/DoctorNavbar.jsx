@@ -2,13 +2,20 @@
 // Converted into a responsive sidebar + topbar for mobile
 import { FaUserMd, FaCalendarAlt, FaComments, FaUsers, FaVideo, FaCog, FaSignOutAlt, FaChevronDown, FaBars, FaTimes, FaHome, FaFileMedical, FaLightbulb, FaPills, FaCheckCircle } from "react-icons/fa";
 import { NavLink, Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import noProfileImage from "../assets/noProfile.webp";
 import { useDoctor } from "../contexts/DoctorContext";
 
 const DoctorNavbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [role, setRole] = useState(() => localStorage.getItem('role') || 'doctor');
+
+  useEffect(() => {
+    const onStorage = (e) => { if (e.key === 'role') setRole(e.newValue || 'doctor'); };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const { doctor, logout } = useDoctor();
 
@@ -17,6 +24,13 @@ const DoctorNavbar = () => {
   const profileImageSrc = doctor?.profileImage || noProfileImage;
   const verified = !!doctor?.isVerified;
   const unread = doctor?.unreadMessages || 0;
+
+  const logoColor = role === 'doctor' ? 'text-red-500' : 'text-green-500';
+  const activeClass = role === 'doctor' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600';
+  const inactiveClass = role === 'doctor'
+    ? 'text-gray-600 hover:bg-gray-100 hover:text-red-600'
+    : 'text-gray-600 hover:bg-gray-100 hover:text-green-600';
+  const badgeClass = role === 'doctor' ? 'bg-red-600 text-white' : 'bg-green-600 text-white';
 
   const navLinks = [
     { path: "/doctor/dashboard", label: "Dashboard", icon: FaHome },
@@ -30,8 +44,6 @@ const DoctorNavbar = () => {
   ];
 
   const linkBase = "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition";
-  const activeClass = "bg-red-50 text-red-600";
-  const inactiveClass = "text-gray-600 hover:bg-gray-100 hover:text-red-600";
 
   return (
     <>
@@ -39,8 +51,8 @@ const DoctorNavbar = () => {
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:flex lg:flex-col bg-white border-r shadow-sm z-40">
         <div className="h-16 flex items-center px-4">
           <Link to="/doctor/dashboard" className="flex items-center gap-2">
-            <FaUserMd className="text-red-500 text-2xl" />
-            <span className="font-bold text-lg text-gray-800">Doc<span className="text-red-500">Connect</span></span>
+            <FaUserMd className={`${logoColor} text-2xl`} />
+            <span className="font-bold text-lg text-gray-800">Doc<span className={`${role === 'doctor' ? 'text-red-500' : 'text-green-500'}`}>Connect</span></span>
           </Link>
         </div>
 
@@ -55,7 +67,7 @@ const DoctorNavbar = () => {
               >
                 <Icon className="w-4 h-4" />
                 <span className="truncate">{link.label}</span>
-                {link.badge > 0 && <span className="ml-auto inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-red-600 text-white rounded-full">{link.badge}</span>}
+                {link.badge > 0 && <span className={`ml-auto inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${badgeClass}`}>{link.badge}</span>}
               </NavLink>
             );
           })}
@@ -73,8 +85,8 @@ const DoctorNavbar = () => {
             </div>
           </div>
           <div className="mt-3 space-y-2">
-            <Link to="/doctor/settings" className="block w-full text-left text-sm px-3 py-2 rounded-md hover:bg-gray-100">Settings</Link>
-            <button onClick={() => logout()} className="w-full text-left text-sm px-3 py-2 text-red-600 rounded-md hover:bg-gray-100 flex items-center gap-2">
+            <Link to="/doctor/settings" className={`block w-full text-left text-sm px-3 py-2 rounded-md hover:bg-gray-100 ${role === 'doctor' ? '' : ''}`}>Settings</Link>
+            <button onClick={() => logout()} className={`w-full text-left text-sm px-3 py-2 ${role === 'doctor' ? 'text-red-600' : 'text-green-600'} rounded-md hover:bg-gray-100 flex items-center gap-2`}>
               <FaSignOutAlt /> Logout
             </button>
           </div>
@@ -89,8 +101,8 @@ const DoctorNavbar = () => {
               <FaBars />
             </button>
             <Link to="/doctor/dashboard" className="flex items-center gap-2">
-              <FaUserMd className="text-red-500 text-xl" />
-              <span className="font-bold text-md text-gray-800">Doc<span className="text-red-500">Connect</span></span>
+              <FaUserMd className={`${logoColor} text-xl`} />
+              <span className="font-bold text-md text-gray-800">Doc<span className={`${role === 'doctor' ? 'text-red-500' : 'text-green-500'}`}>Connect</span></span>
             </Link>
           </div>
 
@@ -110,8 +122,8 @@ const DoctorNavbar = () => {
           <aside className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-md">
             <div className="h-16 flex items-center px-4 justify-between">
               <Link to="/doctor/dashboard" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-                <FaUserMd className="text-red-500 text-2xl" />
-                <span className="font-bold text-lg text-gray-800">Doc<span className="text-red-500">Connect</span></span>
+                <FaUserMd className={`${logoColor} text-2xl`} />
+                <span className="font-bold text-lg text-gray-800">Doc<span className={`${role === 'doctor' ? 'text-red-500' : 'text-green-500'}`}>Connect</span></span>
               </Link>
               <button onClick={() => setMobileOpen(false)} className="p-2"><FaTimes /></button>
             </div>
@@ -128,7 +140,7 @@ const DoctorNavbar = () => {
                   >
                     <Icon className="w-4 h-4" />
                     <span className="truncate">{link.label}</span>
-                    {link.badge > 0 && <span className="ml-auto inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-red-600 text-white rounded-full">{link.badge}</span>}
+                    {link.badge > 0 && <span className={`ml-auto inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${badgeClass}`}>{link.badge}</span>}
                   </NavLink>
                 );
               })}
@@ -144,7 +156,7 @@ const DoctorNavbar = () => {
               </div>
               <div className="mt-3 space-y-2">
                 <Link to="/doctor/settings" className="block w-full text-left text-sm px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setMobileOpen(false)}>Settings</Link>
-                <button onClick={() => { logout(); setMobileOpen(false); }} className="w-full text-left text-sm px-3 py-2 text-red-600 rounded-md hover:bg-gray-100 flex items-center gap-2">
+                <button onClick={() => { logout(); setMobileOpen(false); }} className={`w-full text-left text-sm px-3 py-2 ${role === 'doctor' ? 'text-red-600' : 'text-green-600'} rounded-md hover:bg-gray-100 flex items-center gap-2`}>
                   <FaSignOutAlt /> Logout
                 </button>
               </div>

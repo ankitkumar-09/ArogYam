@@ -1,23 +1,27 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useDoctor } from '../contexts/DoctorContext';
+import React, { useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useDoctorAuth } from '../contexts/DoctorContext';
 
 const DoctorProtectedWrapper = ({ children }) => {
-  const { loading, isAuthenticated } = useDoctor();
+  const { doctor, loading, token, fetchProfile } = useDoctorAuth();
+  const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="w-full h-40 flex items-center justify-center">
-        Loading...
-      </div>
-    );
+  useEffect(() => {
+    if (!doctor && token && !loading) {
+      fetchProfile(token);
+    }
+  }, [doctor, token, loading, fetchProfile]);
+
+  if (loading) return null; // or spinner
+
+  // If we have a token but doctor not yet loaded, wait (avoid redirect loop immediately after login)
+  if (!doctor && token) return null;
+
+  if (!doctor && !token) {
+    return <Navigate to="/" replace state={{ from: location }} />;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/register/doctor" replace />;
-  }
-
-  return <>{children}</>;
+  return children;
 };
 
 export default DoctorProtectedWrapper;

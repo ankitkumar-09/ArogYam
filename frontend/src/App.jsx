@@ -17,62 +17,70 @@ import CaseStudies from "./pages/Doctor/CaseStudies";
 import ShareIdeas from "./pages/Doctor/ShareIdeas";
 import { DoctorProvider } from "./contexts/DoctorContext";
 import DoctorProtectedWrapper from "./ProtectWrapper/DoctorProtectedWrapper";
+import { PatientProvider } from "./contexts/PatientContext";
+import PatientProtectedWrapper from "./ProtectWrapper/PatientProtectedWrapper";
 import Settings from "./pages/Doctor/Settings";
 
 const App = () => {
   return (
     <Router>
-      <DoctorProvider>
-        <Routes>
-          {/* Home */}
-          <Route path="/" element={<Home />} />
+      {/* provide patient context to the app */}
+      <PatientProvider>
+        <DoctorProvider>
+          <Routes>
+            {/* Home */}
+            <Route path="/" element={<Home />} />
 
-          {/* Patient Routes */}
-          <Route path='/register/patient' element={<PatientRegister/>} />
-          <Route path='/patient/dashboard' element={<PatientDashboard/>} />
+            {/* Patient Routes */}
+            <Route path='/register/patient' element={<PatientRegister/>} />
+            {/* protect dashboard */}
+            <Route path='/patient/dashboard' element={
+              <PatientProtectedWrapper><PatientDashboard/></PatientProtectedWrapper>
+            } />
 
-          {/* Doctor Routes */}
-          <Route path='/register/doctor' element={<DoctorRegister/>} />
+            {/* Doctor Routes */}
+            <Route path='/register/doctor' element={<DoctorRegister/>} />
 
-          {/* protected doctor routes */}
-          <Route path='/doctor/dashboard' element={
-            <DoctorProtectedWrapper><DoctorDashboard/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/appointments' element={
-            <DoctorProtectedWrapper><Appointments/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/chats' element={
-            <DoctorProtectedWrapper><PatientChats/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/chat/:patientId' element={
-            <DoctorProtectedWrapper><OnePatientChat/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/video-sessions' element={
-            <DoctorProtectedWrapper><VideoSessionManagement/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/video-call/:sessionId' element={
-            <DoctorProtectedWrapper><VideoCall/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/medicines' element={
-            <DoctorProtectedWrapper><Medicines/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/notes' element={
-            <DoctorProtectedWrapper><Notes/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/case-studies' element={
-            <DoctorProtectedWrapper><CaseStudies/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/share-ideas' element={
-            <DoctorProtectedWrapper><ShareIdeas/></DoctorProtectedWrapper>
-          } />
-          <Route path='/doctor/settings' element={
-            <DoctorProtectedWrapper><Settings/></DoctorProtectedWrapper>
-          } />
+            {/* protected doctor routes */}
+            <Route path='/doctor/dashboard' element={
+              <DoctorProtectedWrapper><DoctorDashboard/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/appointments' element={
+              <DoctorProtectedWrapper><Appointments/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/chats' element={
+              <DoctorProtectedWrapper><PatientChats/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/chat/:patientId' element={
+              <DoctorProtectedWrapper><OnePatientChat/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/video-sessions' element={
+              <DoctorProtectedWrapper><VideoSessionManagement/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/video-call/:sessionId' element={
+              <DoctorProtectedWrapper><VideoCall/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/medicines' element={
+              <DoctorProtectedWrapper><Medicines/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/notes' element={
+              <DoctorProtectedWrapper><Notes/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/case-studies' element={
+              <DoctorProtectedWrapper><CaseStudies/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/share-ideas' element={
+              <DoctorProtectedWrapper><ShareIdeas/></DoctorProtectedWrapper>
+            } />
+            <Route path='/doctor/settings' element={
+              <DoctorProtectedWrapper><Settings/></DoctorProtectedWrapper>
+            } />
 
-          {/* Not Found */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </DoctorProvider>
+            {/* Not Found */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </DoctorProvider>
+      </PatientProvider>
     </Router>
   );
 };

@@ -1,10 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaUserMd, FaBars, FaTimes } from "react-icons/fa";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const [role, setRole] = useState(() => localStorage.getItem('role') || 'patient');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === "role") setRole(e.newValue || "patient");
+    };
+    const onRoleChange = (e) => {
+      setRole(e?.detail || localStorage.getItem("role") || "patient");
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("roleChange", onRoleChange);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("roleChange", onRoleChange);
+    };
+  }, []);
+
+  const primaryBtnClass = role === 'patient'
+    ? 'bg-green-500 hover:bg-green-600'
+    : 'bg-red-500 hover:bg-red-600';
+  const logoColorClass = role === 'patient' ? 'text-green-500' : 'text-red-500';
+  const loginTextClass = role === 'patient' ? 'text-green-600' : 'text-red-600';
 
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-white/80 backdrop-blur-md border-b">
@@ -12,9 +34,9 @@ const Navbar = () => {
 
         {/* LEFT: Logo */}
         <div className="flex items-center gap-2">
-          <FaUserMd className="text-red-500 text-2xl" />
+          <FaUserMd className={`text-2xl ${logoColorClass}`} />
           <span className="text-xl font-bold text-gray-800">
-            Doc<span className="text-red-500">Connect</span>
+            Doc<span className={` ${logoColorClass}`}>Connect</span>
           </span>
         </div>
 
@@ -31,8 +53,8 @@ const Navbar = () => {
           </Link>
 
           <button
-            onClick={() => navigate("/login")}
-            className="px-5 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition"
+            onClick={() => navigate("/")}
+            className={`px-5 py-2 ${primaryBtnClass} text-white rounded-lg font-semibold transition`}
           >
             Login
           </button>
@@ -64,9 +86,9 @@ const Navbar = () => {
             <button
               onClick={() => {
                 setOpen(false);
-                navigate("/login");
+                navigate("/");
               }}
-              className="mt-2 w-full py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600"
+              className={`mt-2 w-full py-2 ${primaryBtnClass} text-white rounded-lg font-semibold transition`}
             >
               Login
             </button>
