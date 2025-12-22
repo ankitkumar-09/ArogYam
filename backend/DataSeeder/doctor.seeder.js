@@ -39,6 +39,10 @@ const LAST_NAMES = [
 
 const usedEmails = new Set();
 
+// 24-hour time formatter: HH:mm (matches frontend time inputs)
+const formatTime24 = (hour, minute = 0) =>
+	`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
 (async function seed() {
 	try {
 		// Connect DB
@@ -71,8 +75,13 @@ const usedEmails = new Set();
 			const quals = sampleMany(QUALIFICATIONS, randInt(1, 3));
 			const langs = sampleMany(LANGUAGES, randInt(1, 3));
 
-			const fromHour = randInt(7, 11);
-			const toHour = randInt(16, 22);
+			// Generate availability in 24-hour HH:mm (15-min increments), ensure to > from
+			const fromHour = randInt(7, 12);
+			const fromMinute = sample([0, 15, 30, 45]);
+			const maxToHour = 22;
+			const minToHour = Math.min(fromHour + 1, maxToHour);
+			const toHour = randInt(minToHour, maxToHour);
+			const toMinute = sample([0, 15, 30, 45]);
 
 			doctors.push({
 				name,
@@ -89,8 +98,8 @@ const usedEmails = new Set();
 					video: randInt(200, 1000)
 				},
 				availability: {
-					from: `${String(fromHour).padStart(2, '0')}:00`,
-					to: `${String(toHour).padStart(2, '0')}:00`
+					from: formatTime24(fromHour, fromMinute),
+					to: formatTime24(toHour, toMinute)
 				},
 				isOnline: Math.random() < 0.6,
 				profileImage: '',

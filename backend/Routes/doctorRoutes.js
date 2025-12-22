@@ -21,10 +21,7 @@ router.get('/:doctorId/slots', doctorController.getDoctorSlots);
 // Admin routes (optional - for admin panel)
 router.get('/all', doctorMiddleware.authenticateDoctor, doctorController.getAllDoctors);
 
-// Public doctor details (safe)
-router.get('/:doctorId', doctorController.getDoctorByIdPublic);
-
-// Test route
+// Test route (MUST be before "/:doctorId")
 router.get('/test', (req, res) => {
   res.json({
     success: true,
@@ -32,5 +29,8 @@ router.get('/test', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Public doctor details (safe) (keep last among simple GETs)
+router.get('/:doctorId', doctorController.getDoctorByIdPublic);
 
 module.exports = router;

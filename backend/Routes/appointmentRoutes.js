@@ -3,25 +3,54 @@ const router = express.Router();
 const appointmentController = require('../Controllers/appointmentContoller');
 const appointmentMiddleware = require('../middlewares/appointmentMiddleware');
 
-router.get('/search', appointmentController.searchDoctors);
+// Defensive wrappers to prevent: "argument handler must be a function"
+const mw = (fn) => (typeof fn === 'function' ? fn : (req, res, next) => next());
+const h = (fn) =>
+  (typeof fn === 'function'
+    ? fn
+    : (req, res) => res.status(501).json({ success: false, message: 'Handler not implemented' }));
 
-// get one doctor for booking flow
-router.get('/doctor/:id', appointmentController.getDoctor);
+router.get('/search', h(appointmentController.searchDoctors));
+router.get('/doctor/:id', h(appointmentController.getDoctor));
 
-// availability for a doctor on a date + mode (from bookingHistoryDoctor)
-router.get('/availability',
-  appointmentMiddleware.validateAvailabilityQuery,
-  appointmentController.getAvailability
+router.get(
+  '/availability',
+  h(appointmentController.getAvailability)
 );
 
-// atomic "check + book" against booking history (prevents double booking)
+// NEW: payment success -> create appointment + book slot
 router.post(
-  '/book-slot',
-  appointmentMiddleware.validateBookSlotBody,
-  appointmentController.bookSlot
+  '/confirm-payment',
+  mw(appointmentMiddleware.validateConfirmPaymentBody),
+  h(appointmentController.confirmPayment)
 );
 
-// POST /appointments/book (legacy / existing)
-router.post('/book', appointmentController.bookAppointment);
+// NEW: patient appointments
+router.get(
+  '/patient/:patientId',
+  mw(appointmentMiddleware.validatePatientAppointmentsParams),
+  h(appointmentController.getPatientAppointments)
+);
+
+// NEW: cancel appointment (also releases slot)
+router.post(
+  '/:appointmentId/cancel',
+  mw(appointmentMiddleware.validateCancelAppointment),
+  h(appointmentController.cancelAppointment)
+);
+
+// NEW: cancel slot directly (if required)
+router.post(
+  '/cancel-slot',
+  mw(appointmentMiddleware.validateCancelSlotBody),
+  h(appointmentController.cancelSlot)
+);
+
+// NEW: reschedule appointment
+router.post(
+  '/:appointmentId/reschedule',
+  mw(appointmentMiddleware.validateRescheduleAppointment), // safe no-op if not implemented
+  h(appointmentController.rescheduleAppointment)
+);
 
 module.exports = router;

@@ -140,4 +140,42 @@ doctorSchema.statics.findByEmail = function(email) {
   return this.findOne({ email: email.toLowerCase() });
 };
 
+// NEW: resolve fee by consultation type (used by booking-history generation)
+doctorSchema.methods.getConsultationFeeForType = function(type) {
+  const feeMap = (this.consultationFee || {});
+  if (!type) return 0;
+  return Number(feeMap[type]) || 0;
+};
+
+// NEW: generate "HH:MM" slots for a day using availability + slotDurationMinutes
+doctorSchema.methods.generateDailySlotTimes = function() {
+  const fromStr = this?.availability?.from || "";
+  const toStr = this?.availability?.to || "";
+  const duration = Number(this?.slotDurationMinutes) || 15;
+
+  // Expect "HH:MM" (24h). Return [] if not configured.
+  const parseHM = (s) => {
+    const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(s).trim());
+    if (!m) return null;
+    return { h: Number(m[1]), min: Number(m[2]) };
+  };
+
+  const from = parseHM(fromStr);
+  const to = parseHM(toStr);
+  if (!from || !to) return [];
+
+  const start = from.h * 60 + from.min;
+  const end = to.h * 60 + to.min;
+  if (end <= start) return [];
+
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const times = [];
+  for (let t = start; t + duration <= end; t += duration) {
+    const hh = Math.floor(t / 60);
+    const mm = t % 60;
+    times.push(`${pad2(hh)}:${pad2(mm)}`);
+  }
+  return times;
+};
+
 module.exports = mongoose.model("Doctor", doctorSchema);

@@ -27,7 +27,14 @@ const appointmentSchema = new mongoose.Schema(
       required: true
     },
 
-    // reference to the embedded Doctor.slots subdocument that was booked
+    // NEW: stable slot identity (avoid TZ issues in UI/cancel)
+    date: { type: String, default: "" },      // YYYY-MM-DD
+    startTime: { type: String, default: "" }, // HH:mm
+    endTime: { type: String, default: "" },   // HH:mm
+
+    // reference to a booked slot record:
+    // - legacy: Doctor.slots._id
+    // - new: DoctorDaySchedule.slots._id (booked-only storage)
     slotId: {
       type: mongoose.Schema.Types.ObjectId,
       default: null
@@ -46,6 +53,10 @@ const appointmentSchema = new mongoose.Schema(
       default: "booked"
     },
 
+    // NEW: cancellation metadata (optional but useful)
+    cancelledAt: { type: Date, default: null },
+    cancelReason: { type: String, default: "" },
+
     // optional notes from patient or admin
     notes: {
       type: String,
@@ -61,6 +72,12 @@ const appointmentSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// NEW: indexes for faster listing
+appointmentSchema.index({ patient: 1, scheduledAt: -1 });
+appointmentSchema.index({ doctor: 1, scheduledAt: -1 });
+appointmentSchema.index({ doctor: 1, status: 1, scheduledAt: 1 });
+appointmentSchema.index({ doctor: 1, date: 1, startTime: 1, status: 1 }); // NEW
 
 // instance method: return safe public appointment object
 appointmentSchema.methods.getPublicDetails = function () {
@@ -81,5 +98,21 @@ appointmentSchema.statics.findUpcomingByDoctor = function (doctorId) {
   if (!doctorId) return Promise.resolve([]);
   return this.find({ doctor: doctorId, scheduledAt: { $gte: new Date() }, status: "booked" }).sort({ scheduledAt: 1 });
 };
+
+// NEW: static find appointments by doctor id
+appointmentSchema.statics.findByDoctor = function (doctorId) {
+  if (!doctorId) return Promise.resolve([]);
+  return this.find({ doctor: doctorId }).sort({ scheduledAt: -1 });
+};
+
+// NEW: cleaner JSON serialization for API responses
+appointmentSchema.set("toJSON", {
+  virtuals: false,
+  versionKey: false,
+  transform: (_doc, ret) => {
+    delete ret.__v;
+    return ret;
+  }
+});
 
 module.exports = mongoose.model("Appointment", appointmentSchema);

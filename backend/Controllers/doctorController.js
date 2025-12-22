@@ -56,12 +56,11 @@ const registerDoctor = async (req, res) => {
       fromTime,
       toTime
     } = req.body;
-    console.log(req.body);
 
-    // Validate required fields
-    if (!name || !email || !phone || !password || !specialization || 
-        !experience || !chatFee || !voiceFee || 
-        !videoFee || !fromTime || !toTime) {
+    // Validate required fields (allow 0 fees; only reject null/undefined/empty)
+    if (!name || !email || !phone || !password || !specialization ||
+        experience == null || chatFee == null || voiceFee == null ||
+        videoFee == null || !fromTime || !toTime) {
       return res.status(400).json({
         success: false,
         message: 'Please fill all required fields'
