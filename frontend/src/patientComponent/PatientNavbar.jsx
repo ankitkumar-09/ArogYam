@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { FaUser, FaCalendarAlt, FaComments, FaVideo, FaStar, FaBars, FaTimes, FaHome, FaCog, FaSignOutAlt, FaChevronDown, FaCheckCircle, FaClipboardList, FaUserMd } from "react-icons/fa";
-import { NavLink, Link } from "react-router-dom";
+import { FaUser, FaCalendarAlt, FaComments, FaVideo, FaStar, FaBars, FaTimes, FaHome, FaSignOutAlt, FaChevronDown, FaCheckCircle, FaClipboardList, FaUserMd } from "react-icons/fa";
+import { NavLink, Link, useLocation } from "react-router-dom";
 import { usePatientAuth } from "../contexts/PatientContext";
 import noProfileImage from "../assets/noProfile.webp";
 
 const PatientNavbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [role, setRole] = useState(() => localStorage.getItem('role') || 'patient');
 
-  
+  const location = useLocation();
+
+  // Close drawers/dropdowns on route change (better mobile UX)
   useEffect(() => {
-    const onStorage = (e) => { if (e.key === 'role') setRole(e.newValue || 'patient'); };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
+    setMobileOpen(false);
+    setProfileOpen(false);
+  }, [location.pathname]);
 
   const { patient, logout } = usePatientAuth();
 
@@ -32,8 +32,8 @@ const PatientNavbar = () => {
 
   const navLinks = [
     { path: "/patient/dashboard", label: "Dashboard", icon: FaHome },
-    { path: "/patient/my-doctor", label: "My Doctor", icon: FaUserMd },
-    { path: "/patient/appointments", label: "Appointments", icon: FaCalendarAlt },
+    { path: "/patient/booked-appointment", label: "My Doctor/Appointments", icon: FaUserMd },
+    { path: "/patient/appointments", label: "Book Appointments", icon: FaCalendarAlt },
     { path: "/patient/chats", label: "Chats", icon: FaComments, badge: unread },
     { path: "/patient/video", label: "Video Calls", icon: FaVideo },
     { path: "/patient/reviews", label: "Reviews", icon: FaStar },
@@ -142,14 +142,15 @@ const PatientNavbar = () => {
             </nav>
 
             <div className="p-4 border-t">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <img src={profileImage} alt="You" className="w-10 h-10 rounded-full object-cover border" />
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{displayName}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{displayName}</p>
                   <p className="text-xs text-gray-500 truncate">{displayEmail}</p>
                 </div>
               </div>
-              <div className="mt-3 space-y-2">
+
+              <div className="mt-4 space-y-2">
                 <Link to="/patient/settings" className="block w-full text-left text-sm px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setMobileOpen(false)}>Settings</Link>
                 <button onClick={() => { logout(); setMobileOpen(false); }} className="w-full text-left text-sm px-3 py-2 text-red-600 rounded-md hover:bg-gray-100">Logout</button>
               </div>

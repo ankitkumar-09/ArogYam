@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import DoctorRegisterNavbar from "../../doctorComponent/DoctorRegisterNavbar";
 import DoctorPreviewModal from "../../doctorComponent/DoctorPreviewModal";
 import axios from "axios";
@@ -24,6 +24,7 @@ const DoctorRegister = () => {
     fromTime: "",
     toTime: "",
   });
+  const formRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,6 +60,12 @@ const DoctorRegister = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const goToStep = (nextStep) => {
+    // Validates only currently-rendered inputs (since other steps are not in the DOM)
+    const ok = formRef.current?.reportValidity?.() ?? true;
+    if (ok) setStep(nextStep);
   };
 
   const input =
@@ -118,7 +125,7 @@ const DoctorRegister = () => {
           </div>
 
           {/* FORM */}
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-3">
 
             {/* STEP 1 */}
             {step === 1 && (
@@ -137,7 +144,7 @@ const DoctorRegister = () => {
 
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={() => goToStep(2)}
                   className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-2 rounded-md font-semibold hover:scale-[1.01] transform transition-shadow shadow-sm mt-4 flex items-center justify-center gap-2"
                 >
                   <span>Continue</span>
@@ -163,7 +170,11 @@ const DoctorRegister = () => {
                     </svg>
                     <span>Back</span>
                   </button>
-                  <button type="button" onClick={() => setStep(3)} className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded hover:scale-[1.01] transform transition-shadow shadow-sm flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => goToStep(3)}
+                    className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded hover:scale-[1.01] transform transition-shadow shadow-sm flex items-center gap-2"
+                  >
                     <span>Continue</span>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
@@ -183,9 +194,35 @@ const DoctorRegister = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mt-3">
-                  <input required type="time" name="fromTime" value={formData.fromTime} className={input} onChange={handleChange} />
-                  <input required type="time" name="toTime" value={formData.toTime} className={input} onChange={handleChange} />
+                  <input
+                    required
+                    type="time"
+                    lang="en-GB"
+                    step={900}
+                    name="fromTime"
+                    aria-label="From time (24-hour)"
+                    value={formData.fromTime}
+                    className={input}
+                    onChange={handleChange}
+                    max={formData.toTime || undefined}
+                  />
+                  <input
+                    required
+                    type="time"
+                    lang="en-GB"
+                    step={900}
+                    name="toTime"
+                    aria-label="To time (24-hour)"
+                    value={formData.toTime}
+                    className={input}
+                    onChange={handleChange}
+                    min={formData.fromTime || undefined}
+                  />
                 </div>
+
+                <p className="text-xs text-gray-500 mt-1">
+                  Use 24-hour time (e.g., 09:30, 17:45).
+                </p>
 
                 <div className="flex justify-between mt-4 items-center">
                   <button type="button" onClick={() => setStep(2)} className="border px-4 py-2 rounded flex items-center gap-2 hover:shadow-sm transition">
@@ -195,7 +232,14 @@ const DoctorRegister = () => {
                     <span>Back</span>
                   </button>
 
-                  <button type="button" onClick={() => setShowPreview(true)} className="bg-amber-400 text-white px-4 py-2 rounded hover:bg-amber-500 shadow-md flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Ensure required fields + 24h time format are valid before preview
+                      if (formRef.current?.reportValidity?.()) setShowPreview(true);
+                    }}
+                    className="bg-amber-400 text-white px-4 py-2 rounded hover:bg-amber-500 shadow-md flex items-center gap-2"
+                  >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276a1 1 0 010 1.788L15 12v-2zM4 6v12a2 2 0 002 2h12" />
                     </svg>

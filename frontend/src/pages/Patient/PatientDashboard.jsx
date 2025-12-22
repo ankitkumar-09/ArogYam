@@ -58,7 +58,7 @@ const PatientDashboard = () => {
       <PatientNavbar />
 
       {/* Main Content */}
-      <main className="lg:pl-64">
+      <main className="pt-16 lg:pt-0 lg:pl-64">
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Header */}
           <div className="mb-6">

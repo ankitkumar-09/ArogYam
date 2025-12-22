@@ -23,6 +23,8 @@ import Settings from "./pages/Doctor/Settings";
 import AppointmentBooking from "./pages/Patient/AppointmentBooking";
 import DoctorBookingProcess from "./pages/Patient/DoctorBookingProcess"; // added
 import VerifyEmailPage from "./component/VerifyEmailPage";
+import Payment from "./component/Payment"; // NEW
+import BookedAppointment from "./pages/Patient/BookedAppointment";
 
 const App = () => {
   return (
@@ -37,18 +39,48 @@ const App = () => {
 
             {/* Patient Routes */}
             <Route path='/register/patient' element={<PatientRegister/>} />
-            {/* protect dashboard */}
-            <Route path='/patient/dashboard' element={
-              <PatientProtectedWrapper><PatientDashboard/></PatientProtectedWrapper>
-            } />
-            <Route path='/patient/appointments' element={
-              <PatientProtectedWrapper><AppointmentBooking/></PatientProtectedWrapper>
-            } />
 
-            {/* Doctor booking flow for patient */}
-            <Route path='/patient/doctor/:doctorId/book' element={
-              <PatientProtectedWrapper><DoctorBookingProcess/></PatientProtectedWrapper>
-            } />
+            {/* CHANGED: no layout, protect each route directly */}
+            <Route
+              path='/patient/dashboard'
+              element={
+                <PatientProtectedWrapper>
+                  <PatientDashboard />
+                </PatientProtectedWrapper>
+              }
+            />
+            <Route
+              path='/patient/appointments'
+              element={
+                <PatientProtectedWrapper>
+                  <AppointmentBooking />
+                </PatientProtectedWrapper>
+              }
+            />
+            <Route
+              path='/patient/booked-appointment'
+              element={
+                <PatientProtectedWrapper>
+                  <BookedAppointment />
+                </PatientProtectedWrapper>
+              }
+            />
+            <Route
+              path='/patient/doctor/:doctorId/book'
+              element={
+                <PatientProtectedWrapper>
+                  <DoctorBookingProcess />
+                </PatientProtectedWrapper>
+              }
+            />
+            <Route
+              path='/patient/payment'
+              element={
+                <PatientProtectedWrapper>
+                  <Payment />
+                </PatientProtectedWrapper>
+              }
+            />
 
             {/* Doctor Routes */}
             <Route path='/register/doctor' element={<DoctorRegister/>} />

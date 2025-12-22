@@ -12,7 +12,7 @@ export default function DailyRoutineContent(){
   return (
     <div className="min-h-screen bg-gray-50">
       <PatientNavbar />
-      <main className="lg:pl-64 p-6">
+      <main className="pt-16 lg:pt-0 lg:pl-64 p-6">
         <div className="max-w-3xl mx-auto">
           <div className="text-center my-8">
             <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-green-600">

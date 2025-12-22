@@ -55,8 +55,8 @@ const AppointmentBooking = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <PatientNavbar />
-      <main className="lg:pl-64">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+      <main className="pt-16 lg:pt-0 lg:pl-64">
+        <div className="w-full max-w-7xl px-6 py-8 lg:mx-0">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-semibold">Book Appointment</h2>
@@ -66,39 +66,77 @@ const AppointmentBooking = () => {
 
           {/* Filter Card */}
           <div className="bg-white border rounded-xl p-5 mb-6 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div>
+            {/* CHANGED: make filter grid 12-col responsive to prevent overflow */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="md:col-span-4">
                 <label className="text-xs text-gray-500">Search Doctor</label>
                 <div className="mt-1 relative">
-                  <input placeholder="Search by name..." value={searchName} onChange={e=>setSearchName(e.target.value)} className="w-full px-3 py-2 border rounded-md pr-10" />
-                  <button type="button" onClick={fetchDoctors} className="absolute right-2 top-1/2 -translate-y-1/2 text-green-600"><MdSearch /></button>
+                  <input
+                    placeholder="Search by name..."
+                    value={searchName}
+                    onChange={e=>setSearchName(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md pr-10"
+                  />
+                  <button type="button" onClick={fetchDoctors} className="absolute right-2 top-1/2 -translate-y-1/2 text-green-600">
+                    <MdSearch />
+                  </button>
                 </div>
               </div>
-              <div>
+
+              <div className="md:col-span-3">
                 <label className="text-xs text-gray-500">Specialization</label>
-                <select value={specialization} onChange={e => setSpecialization(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md">
+                <select
+                  value={specialization}
+                  onChange={e => setSpecialization(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 border rounded-md"
+                >
                   <option value=''>All Specializations</option>
                   {SPECIALIZATIONS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
+
+              <div className="md:col-span-3 flex gap-2">
+                <div className="flex-1 min-w-0">
                   <label className="text-xs text-gray-500">Min Fee (₹)</label>
-                  <input placeholder="0" value={minFee} onChange={e=>setMinFee(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md" />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={minFee}
+                    onChange={e=>setMinFee(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border rounded-md"
+                  />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <label className="text-xs text-gray-500">Max Fee (₹)</label>
-                  <input placeholder="Any" value={maxFee} onChange={e=>setMaxFee(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md" />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="Any"
+                    value={maxFee}
+                    onChange={e=>setMaxFee(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border rounded-md"
+                  />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <button onClick={fetchDoctors} className="w-full px-4 py-2 bg-green-600 text-white rounded-md flex items-center justify-center gap-2"><MdSearch /> Search</button>
-                </div>
-                <button onClick={() => { setSpecialization(''); setMinFee(''); setMaxFee(''); setSearchName(''); fetchDoctors(); }} className="px-4 py-2 text-gray-600 flex items-center gap-1"><MdRefresh /> Reset</button>
+
+              <div className="md:col-span-2 flex flex-col gap-2">
+                <button
+                  onClick={fetchDoctors}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-md flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  <MdSearch /> Search
+                </button>
+                <button
+                  onClick={() => { setSpecialization(''); setMinFee(''); setMaxFee(''); setSearchName(''); fetchDoctors(); }}
+                  className="w-full px-4 py-2 text-gray-600 border border-gray-200 rounded-md flex items-center justify-center gap-2 hover:bg-gray-50 whitespace-nowrap"
+                >
+                  <MdRefresh /> Reset
+                </button>
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-4">
+
+            <div className="mt-4 flex flex-wrap items-center gap-4">
               <label className="inline-flex items-center gap-2 text-sm text-gray-600">
                 <input type="checkbox" className="form-checkbox" /> Online Only
               </label>
@@ -148,15 +186,24 @@ const AppointmentBooking = () => {
                         </div>
                       </div>
 
-                      <div className="mt-4 border-t pt-3 flex items-center justify-between">
-                        <div className="flex items-center gap-6 text-sm text-gray-700">
-                          <div className="flex items-center gap-1"><MdChat /> ₹{doc.consultationFee?.chat ?? 0}</div>
-                          <div className="flex items-center gap-1"><MdCall /> ₹{doc.consultationFee?.voice ?? 0}</div>
-                          <div className="flex items-center gap-1"><MdVideocam /> ₹{doc.consultationFee?.video ?? 0}</div>
+                      {/* CHANGED: footer wraps so Book Now never overflows */}
+                      <div className="mt-4 border-t pt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-700 min-w-0">
+                          <div className="flex items-center gap-1 whitespace-nowrap"><MdChat /> ₹{doc.consultationFee?.chat ?? 0}</div>
+                          <div className="flex items-center gap-1 whitespace-nowrap"><MdCall /> ₹{doc.consultationFee?.voice ?? 0}</div>
+                          <div className="flex items-center gap-1 whitespace-nowrap"><MdVideocam /> ₹{doc.consultationFee?.video ?? 0}</div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-sm text-gray-500">From <span className="font-semibold text-gray-800">₹{Math.min(doc.consultationFee?.chat||9999, doc.consultationFee?.voice||9999, doc.consultationFee?.video||9999)}</span></div>
-                          <button onClick={()=>openBooking(doc)} className="px-4 py-2 bg-green-600 text-white rounded-md">Book Now</button>
+
+                        <div className="flex flex-col xs:flex-row sm:flex-row sm:items-center gap-2 sm:gap-3">
+                          <div className="text-sm text-gray-500 whitespace-nowrap">
+                            From <span className="font-semibold text-gray-800">₹{Math.min(doc.consultationFee?.chat||9999, doc.consultationFee?.voice||9999, doc.consultationFee?.video||9999)}</span>
+                          </div>
+                          <button
+                            onClick={()=>openBooking(doc)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md whitespace-nowrap shrink-0 w-full sm:w-auto"
+                          >
+                            Book Now
+                          </button>
                         </div>
                       </div>
                     </div>

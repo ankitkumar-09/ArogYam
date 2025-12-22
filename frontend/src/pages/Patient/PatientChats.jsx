@@ -11,7 +11,7 @@ export default function PatientChats(){
   return (
     <div className="min-h-screen bg-gray-50">
       <PatientNavbar />
-      <main className="lg:pl-64 p-6">
+      <main className="pt-16 lg:pt-0 lg:pl-64 p-6">
         <h1 className="text-xl font-semibold mb-4">Chats</h1>
         <div className="space-y-3">
           {sampleChats.map(c => (

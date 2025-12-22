@@ -67,7 +67,17 @@ export const PatientProvider = ({ children }) => {
   };
 
   return (
-    <PatientContext.Provider value={{ patient, loading, token, login, logout, fetchProfile }}>
+    <PatientContext.Provider
+      value={{
+        API_URL, // NEW
+        patient,
+        loading,
+        token,
+        login,
+        logout,
+        fetchProfile
+      }}
+    >
       {children}
     </PatientContext.Provider>
   );

@@ -21,7 +21,7 @@ export default function PatientReviews(){
   return (
     <div className="min-h-screen bg-gray-50">
       <PatientNavbar />
-      <main className="lg:pl-64 p-6">
+      <main className="pt-16 lg:pt-0 lg:pl-64 p-6">
         <h1 className="text-xl font-semibold mb-4">Reviews</h1>
 
         <div className="bg-white p-4 rounded shadow mb-4">
