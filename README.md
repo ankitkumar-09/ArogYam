@@ -1,4 +1,4 @@
-# 🏥 ArogYam - Healthcare Appointment & Consultation Platform
+[# 🏥 ArogYam - Healthcare Appointment & Consultation Platform
 
 ArogYam is a full-stack telemedicine and appointment management platform that connects patients with doctors for video consultations, voice calls, chat, and in-person appointments. Built with modern web technologies, it provides seamless scheduling, real-time communication, and payment integration.
 
@@ -682,3 +682,4 @@ For issues or questions:
 ---
 
 **Last Updated**: December 23, 2025
+](https://github.com/ankitkumar-09/SoFs-Event-Extractor)
