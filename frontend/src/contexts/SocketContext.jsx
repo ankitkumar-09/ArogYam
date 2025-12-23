@@ -15,28 +15,48 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [socketError, setSocketError] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // ✅ Prototype-only identities
+  const PROTO_DOCTOR_ID = 'doctor@gmail.com';
+  const PROTO_PATIENT_ID = 'patient@gmail.com';
 
   // ensure we have a stable user id / basic user data
   const getOrCreateLocalUser = () => {
+    const path = typeof window !== 'undefined' ? window.location.pathname : '';
+    const inferredType = path.startsWith('/patient') ? 'patient' : 'doctor';
+
+    // ✅ always force these two users (prevents backend allowlist rejection)
+    const forcedId = inferredType === 'patient' ? PROTO_PATIENT_ID : PROTO_DOCTOR_ID;
+
     try {
       const key = 'dc_user';
       const raw = localStorage.getItem(key);
+
+      // if existing user is not allowed, overwrite
       if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.id) return parsed;
+        try {
+          const parsed = JSON.parse(raw);
+          const allowed =
+            (parsed?.id === PROTO_DOCTOR_ID && (parsed?.type === 'doctor' || inferredType === 'doctor')) ||
+            (parsed?.id === PROTO_PATIENT_ID && (parsed?.type === 'patient' || inferredType === 'patient'));
+
+          if (allowed) return { ...parsed, type: inferredType };
+        } catch (_) {}
       }
-      const id = 'web_' + Math.random().toString(36).substr(2, 9);
-      const user = { id, type: 'doctor' };
+
+      const user = { id: forcedId, type: inferredType, email: forcedId };
       localStorage.setItem(key, JSON.stringify(user));
       return user;
     } catch (e) {
-      const id = 'web_' + Math.random().toString(36).substr(2, 9);
-      return { id, type: 'doctor' };
+      return { id: forcedId, type: inferredType, email: forcedId };
     }
   };
 
   useEffect(() => {
     const localUser = getOrCreateLocalUser();
+    setCurrentUser(localUser);
+
     const token = localStorage.getItem('token') || null;
 
     // Connect to socket with stable user info
@@ -76,7 +96,8 @@ export const SocketProvider = ({ children }) => {
     isConnected,
     socketError,
     reconnectSocket,
-    
+    currentUser,
+
     // Chat methods
     joinChatRoom: socketService.joinChatRoom,
     leaveChatRoom: socketService.leaveChatRoom,
@@ -84,7 +105,7 @@ export const SocketProvider = ({ children }) => {
     onReceiveMessage: socketService.onReceiveMessage,
     onTyping: socketService.onTyping,
     sendTyping: socketService.sendTyping,
-    
+
     // Video call / signaling methods (mapped to existing service methods)
     joinVideoRoom: socketService.joinVideoRoom,
     leaveVideoRoom: socketService.leaveVideoRoom,
@@ -96,6 +117,8 @@ export const SocketProvider = ({ children }) => {
     onIceCandidate: socketService.onIceCandidate,
     onUserJoinedVideo: socketService.onUserJoinedVideo,
     onUserLeftVideo: socketService.onUserLeftVideo,
+    // + expose participants list listener
+    onVideoRoomParticipants: socketService.onVideoRoomParticipants,
     toggleAudioVideo: socketService.toggleAudioVideo,
     startCall: socketService.startCall,
     endCall: socketService.endCall,
@@ -103,14 +126,18 @@ export const SocketProvider = ({ children }) => {
     onCallEnded: socketService.onCallEnded,
     onCallToggled: socketService.onCallToggled,
 
+    // + Call scheduling (prototype)
+    scheduleCall: socketService.scheduleCall,
+    onCallScheduled: socketService.onCallScheduled,
+
     // Notification methods
     subscribeToNotifications: socketService.subscribeToNotifications,
     onNotification: socketService.onNotification,
-    
+
     // Presence methods
     setOnlineStatus: socketService.setOnlineStatus,
     onPresenceUpdate: socketService.onPresenceUpdate,
-    
+
     // Error handling
     onError: socketService.onError,
   };

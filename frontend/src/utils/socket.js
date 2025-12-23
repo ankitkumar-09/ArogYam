@@ -10,6 +10,54 @@ class SocketService {
     this.isConnecting = false;
     this.reconnectTimeout = null;
     this.eventListeners = new Map();
+
+    // ✅ bind methods used as callbacks/props (prevents "this is undefined")
+    this.connect = this.connect.bind(this);
+    this.disconnect = this.disconnect.bind(this);
+    this.reconnect = this.reconnect.bind(this);
+    this.removeAllListeners = this.removeAllListeners.bind(this);
+    this.getSocket = this.getSocket.bind(this);
+    this.isConnected = this.isConnected.bind(this);
+
+    this.joinChatRoom = this.joinChatRoom.bind(this);
+    this.leaveChatRoom = this.leaveChatRoom.bind(this);
+    this.sendMessage = this.sendMessage.bind(this);
+    this.onReceiveMessage = this.onReceiveMessage.bind(this);
+    this.onTyping = this.onTyping.bind(this);
+    this.sendTyping = this.sendTyping.bind(this);
+
+    this.joinVideoRoom = this.joinVideoRoom.bind(this);
+    this.leaveVideoRoom = this.leaveVideoRoom.bind(this);
+    this.sendOffer = this.sendOffer.bind(this);
+    this.sendAnswer = this.sendAnswer.bind(this);
+    this.sendIceCandidate = this.sendIceCandidate.bind(this);
+    this.onOffer = this.onOffer.bind(this);
+    this.onAnswer = this.onAnswer.bind(this);
+    this.onIceCandidate = this.onIceCandidate.bind(this);
+
+    this.startCall = this.startCall.bind(this);
+    this.endCall = this.endCall.bind(this);
+    this.toggleAudioVideo = this.toggleAudioVideo.bind(this);
+    this.onIncomingCall = this.onIncomingCall.bind(this);
+    this.onCallEnded = this.onCallEnded.bind(this);
+    this.onCallToggled = this.onCallToggled.bind(this);
+    this.onUserJoinedVideo = this.onUserJoinedVideo.bind(this);
+    this.onUserLeftVideo = this.onUserLeftVideo.bind(this);
+    this.onVideoRoomParticipants = this.onVideoRoomParticipants.bind(this);
+
+    this.subscribeToNotifications = this.subscribeToNotifications.bind(this);
+    this.onNotification = this.onNotification.bind(this);
+
+    this.scheduleCall = this.scheduleCall.bind(this);
+    this.onCallScheduled = this.onCallScheduled.bind(this);
+
+    this.setOnlineStatus = this.setOnlineStatus.bind(this);
+    this.onPresenceUpdate = this.onPresenceUpdate.bind(this);
+
+    this.onError = this.onError.bind(this);
+
+    this.on = this.on.bind(this);
+    this.off = this.off.bind(this);
   }
 
   connect(userId, userType = 'doctor', userData = {}, token = null) {
@@ -37,7 +85,8 @@ class SocketService {
         userData: JSON.stringify(userData)
       },
       auth: token ? { token } : {},
-      forceNew: true,
+      // + allow connectionStateRecovery to work better
+      forceNew: false,
       upgrade: true,
       rememberUpgrade: true
     });
@@ -133,10 +182,10 @@ class SocketService {
 
   reconnect() {
     if (this.socket && this.socket.userId) {
-      const { userId, userType, userData } = this.socket;
+      const { userId, userType, userData, token } = this.socket;
       this.disconnect();
       setTimeout(() => {
-        this.connect(userId, userType, userData);
+        this.connect(userId, userType, userData, token || null);
       }, 1000);
     }
   }
@@ -410,6 +459,22 @@ class SocketService {
     }
   }
 
+  // =================== CALL SCHEDULING (PROTOTYPE) ===================
+
+  scheduleCall(roomId, doctorId, patientId, scheduledFor) {
+    if (this.socket?.connected) {
+      this.socket.emit('schedule-call', { roomId, doctorId, patientId, scheduledFor });
+      return true;
+    }
+    return false;
+  }
+
+  onCallScheduled(callback) {
+    if (this.socket) {
+      this.socket.on('call-scheduled', callback);
+    }
+  }
+
   // =================== PRESENCE METHODS ===================
   
   setOnlineStatus(userId, status = 'online') {
@@ -494,6 +559,17 @@ class SocketService {
     if (this.socket) {
       this.socket.on('message-sent', callback);
     }
+  }
+
+  // + React-friendly helpers
+  on(event, callback) {
+    if (!this.socket) return () => {};
+    this.socket.on(event, callback);
+    return () => this.socket?.off(event, callback);
+  }
+
+  off(event, callback) {
+    if (this.socket) this.socket.off(event, callback);
   }
 }
 

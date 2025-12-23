@@ -1,55 +1,73 @@
 // VideoSessionManagement.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import DoctorNavbar from '../../doctorComponent/DoctorNavbar';
-import { Link } from 'react-router-dom';
 import { FaVideo, FaCalendarAlt, FaHistory, FaPlay, FaUser } from 'react-icons/fa';
+import { useSocket } from '../../contexts/SocketContext';
+import { useNavigate } from 'react-router-dom';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const PROTO_DOCTOR_ID = 'doctor@gmail.com';
+const PROTO_PATIENT_ID = 'patient@gmail.com';
+const PROTO_CALL_ROOM_ID = `call_${PROTO_DOCTOR_ID}_${PROTO_PATIENT_ID}`;
 
 const VideoSessionManagement = () => {
-  const [upcomingSessions] = useState([
-    {
-      id: 1,
-      patient: 'Emma Davis',
-      time: '03:30 PM',
-      type: 'Follow-up consultation',
-      duration: '30 mins'
-    },
-    {
-      id: 2,
-      patient: 'James Wilson',
-      time: '05:00 PM',
-      type: 'Initial consultation',
-      duration: '45 mins'
-    }
-  ]);
+  const nav = useNavigate();
+  const { isConnected, currentUser, scheduleCall, onCallScheduled, joinVideoRoom, startCall } = useSocket();
 
-  const [sessionHistory] = useState([
-    {
-      id: 1,
-      patient: 'John Smith',
-      time: '09:00 AM',
-      date: 'Today',
-      status: 'completed'
-    },
-    {
-      id: 2,
-      patient: 'Alice Johnson',
-      time: '10:00 AM',
-      date: 'Yesterday',
-      status: 'completed'
-    },
-    {
-      id: 3,
-      patient: 'Robert Brown',
-      time: '02:00 PM',
-      date: 'Dec 17, 2025',
-      status: 'completed'
-    }
-  ]);
+  const doctorId = PROTO_DOCTOR_ID;
+  const [patientId, setPatientId] = useState(PROTO_PATIENT_ID);
+  const [scheduledFor, setScheduledFor] = useState(() => {
+    const d = new Date(Date.now() + 5 * 60 * 1000);
+    return d.toISOString().slice(0, 16); // yyyy-MM-ddTHH:mm
+  });
+
+  const [items, setItems] = useState([]);
+
+  const load = async () => {
+    const res = await fetch(`${API_URL}/api/calls/schedule?doctorId=${encodeURIComponent(doctorId)}`).catch(() => null);
+    const data = res && res.ok ? await res.json() : null;
+    setItems(data?.items || []);
+  };
+
+  useEffect(() => {
+    if (!doctorId) return;
+    load();
+  }, [doctorId]);
+
+  useEffect(() => {
+    // live updates
+    const unsub = onCallScheduled((s) => {
+      if (String(s?.doctorId) === String(doctorId)) load();
+    });
+    return () => unsub?.();
+  }, [doctorId, onCallScheduled]);
+
+  const upcomingSessions = useMemo(
+    () => items.filter(x => x.status === 'scheduled').slice(0, 20),
+    [items]
+  );
+
+  const sessionHistory = useMemo(
+    () => items.filter(x => x.status !== 'scheduled').slice(0, 20),
+    [items]
+  );
+
+  const doSchedule = () => {
+    if (!isConnected) return;
+    scheduleCall(PROTO_CALL_ROOM_ID, PROTO_DOCTOR_ID, PROTO_PATIENT_ID, new Date(scheduledFor).toISOString());
+  };
+
+  const joinNow = (session) => {
+    if (!isConnected) return;
+    joinVideoRoom(PROTO_CALL_ROOM_ID, PROTO_DOCTOR_ID, 'doctor', currentUser || { id: PROTO_DOCTOR_ID, type: 'doctor' });
+    startCall(PROTO_CALL_ROOM_ID, PROTO_DOCTOR_ID, PROTO_PATIENT_ID);
+    nav(`/doctor/video-call/${encodeURIComponent(PROTO_CALL_ROOM_ID)}`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <DoctorNavbar />
-      
+
       <main className="p-4 md:p-6 lg:ml-64">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -66,6 +84,33 @@ const VideoSessionManagement = () => {
             <p className="text-gray-500">Manage your telemedicine appointments</p>
           </div>
 
+          {/* Quick Schedule Form */}
+          <div className="mb-6 bg-white rounded-xl shadow-sm border p-4">
+            <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <FaCalendarAlt /> Schedule Prototype Call
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input
+                className="p-3 border border-gray-300 rounded-lg"
+                value={patientId}
+                readOnly
+                placeholder="patient-1"
+              />
+              <input
+                type="datetime-local"
+                className="p-3 border border-gray-300 rounded-lg"
+                value={scheduledFor}
+                onChange={(e) => setScheduledFor(e.target.value)}
+              />
+              <button
+                onClick={doSchedule}
+                className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition"
+              >
+                Schedule
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upcoming Sessions */}
             <div className="lg:col-span-2 space-y-4">
@@ -78,32 +123,25 @@ const VideoSessionManagement = () => {
               </div>
 
               {upcomingSessions.map((session) => (
-                <div key={session.id} className="bg-white rounded-xl shadow-sm border p-4">
+                <div key={session._id || session.id} className="bg-white rounded-xl shadow-sm border p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                         <FaUser className="text-red-500 text-xl" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-800">{session.patient}</h4>
-                        <p className="text-sm text-gray-500">{session.type}</p>
+                        <h4 className="font-semibold text-gray-800">{session.patientId}</h4>
+                        <p className="text-sm text-gray-500">{new Date(session.scheduledFor).toLocaleString()}</p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-gray-800">{session.time}</div>
-                      <div className="text-sm text-gray-500">{session.duration}</div>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Link
-                      to={`/doctor/video-call/${session.id}`}
+                    <button
+                      onClick={() => joinNow(session)}
                       className="flex-1 bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition flex items-center justify-center gap-2"
                     >
                       <FaPlay />
                       Join Call
-                    </Link>
-                    <button className="flex-1 border border-gray-300 py-2 rounded-lg hover:bg-gray-50 transition">
-                      Reschedule
                     </button>
                   </div>
                 </div>
@@ -122,22 +160,14 @@ const VideoSessionManagement = () => {
                 <div className="p-4">
                   <div className="space-y-3">
                     {sessionHistory.map((session) => (
-                      <div key={session.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                            <FaUser className="text-green-500" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-800">{session.patient}</h4>
-                            <p className="text-sm text-gray-500">{session.date}</p>
-                          </div>
+                      <div key={session._id || session.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
+                        <div>
+                          <h4 className="font-medium text-gray-800">{session.patientId}</h4>
+                          <p className="text-sm text-gray-500">{new Date(session.scheduledFor).toLocaleString()}</p>
                         </div>
-                        <div className="text-right">
-                          <div className="font-medium text-gray-800">{session.time}</div>
-                          <span className="text-xs px-2 py-1 bg-green-100 text-green-600 rounded-full">
-                            {session.status}
-                          </span>
-                        </div>
+                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
+                          {session.status}
+                        </span>
                       </div>
                     ))}
                   </div>

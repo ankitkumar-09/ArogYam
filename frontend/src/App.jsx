@@ -25,6 +25,8 @@ import DoctorBookingProcess from "./pages/Patient/DoctorBookingProcess"; // adde
 import VerifyEmailPage from "./component/VerifyEmailPage";
 import Payment from "./component/Payment"; // NEW
 import BookedAppointment from "./pages/Patient/BookedAppointment";
+import PatientChatsPage from "./pages/Patient/PatientChats";
+import PatientVideoCall from "./pages/Patient/PatientVideoCall";
 
 const App = () => {
   return (
@@ -78,6 +80,32 @@ const App = () => {
               element={
                 <PatientProtectedWrapper>
                   <Payment />
+                </PatientProtectedWrapper>
+              }
+            />
+
+            {/* + Patient Chat + Video Call (prototype) */}
+            <Route
+              path="/patient/chats"
+              element={
+                <PatientProtectedWrapper>
+                  <PatientChatsPage />
+                </PatientProtectedWrapper>
+              }
+            />
+            <Route
+              path="/patient/video-sessions"
+              element={
+                <PatientProtectedWrapper>
+                  <PatientVideoCall />
+                </PatientProtectedWrapper>
+              }
+            />
+            <Route
+              path="/patient/video-call/:sessionId"
+              element={
+                <PatientProtectedWrapper>
+                  <VideoCall />
                 </PatientProtectedWrapper>
               }
             />

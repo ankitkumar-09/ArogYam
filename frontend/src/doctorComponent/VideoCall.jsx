@@ -1,61 +1,197 @@
 // VideoCall.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import DoctorNavbar from './DoctorNavbar'
-import { useParams } from 'react-router-dom';
-import { 
-  FaVideo, 
-  FaVideoSlash, 
-  FaMicrophone, 
-  FaMicrophoneSlash,
-  FaPhoneSlash,
-  FaUser,
-  FaUsers,
-  FaStethoscope,
-  FaClipboard
+import React, { useEffect, useRef, useState } from 'react';
+import DoctorNavbar from './DoctorNavbar';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useSocket } from '../contexts/SocketContext';
+import {
+  FaVideo, FaVideoSlash, FaMicrophone, FaMicrophoneSlash, FaPhoneSlash,
+  FaUser, FaStethoscope, FaClipboard
 } from 'react-icons/fa';
 
+const PROTO_DOCTOR_ID = 'doctor@gmail.com';
+const PROTO_PATIENT_ID = 'patient@gmail.com';
+
+const ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] };
+
 const VideoCall = () => {
+  const nav = useNavigate();
   const { sessionId } = useParams();
+  const { socket, isConnected, currentUser, joinVideoRoom, leaveVideoRoom, sendOffer, sendAnswer, sendIceCandidate, endCall } = useSocket();
+
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [patientNotes, setPatientNotes] = useState('');
-  
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+
+  const localVideoEl = useRef(null);
+  const remoteVideoEl = useRef(null);
+  const pcRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const remoteSocketIdRef = useRef(null);
   const timerRef = useRef(null);
 
+  const meId = currentUser?.id || PROTO_DOCTOR_ID;
+  const meType = currentUser?.type || (meId === PROTO_PATIENT_ID ? 'patient' : 'doctor');
+  const otherId = meId === PROTO_DOCTOR_ID ? PROTO_PATIENT_ID : PROTO_DOCTOR_ID;
+
+  const ensurePC = () => {
+    if (pcRef.current) return pcRef.current;
+
+    const pc = new RTCPeerConnection(ICE);
+
+    pc.onicecandidate = (e) => {
+      if (!e.candidate) return;
+      const targetSocketId = remoteSocketIdRef.current;
+      if (!targetSocketId) return;
+      sendIceCandidate(sessionId, e.candidate, targetSocketId);
+    };
+
+    pc.ontrack = (e) => {
+      if (remoteVideoEl.current) remoteVideoEl.current.srcObject = e.streams[0];
+    };
+
+    pcRef.current = pc;
+    return pc;
+  };
+
+  const startLocalMedia = async () => {
+    if (localStreamRef.current) return localStreamRef.current;
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    });
+
+    // apply initial toggle state
+    stream.getVideoTracks().forEach(t => (t.enabled = !!videoEnabled));
+    stream.getAudioTracks().forEach(t => (t.enabled = !!audioEnabled));
+
+    localStreamRef.current = stream;
+    if (localVideoEl.current) localVideoEl.current.srcObject = stream;
+
+    const pc = ensurePC();
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+    return stream;
+  };
+
+  const makeOfferTo = async (targetSocketId) => {
+    remoteSocketIdRef.current = targetSocketId;
+    await startLocalMedia();
+
+    const pc = ensurePC();
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    sendOffer(sessionId, offer, targetSocketId);
+  };
+
   useEffect(() => {
-    // Simulate WebRTC connection
-    timerRef.current = setInterval(() => {
-      setCallDuration(prev => prev + 1);
-    }, 1000);
+    if (!isConnected || !socket || !sessionId) return;
+
+    // timer
+    timerRef.current = setInterval(() => setCallDuration((p) => p + 1), 1000);
+
+    // join room (server uses socket.userId, still pass for compatibility)
+    joinVideoRoom(sessionId, meId, meType, currentUser || { id: meId, type: meType });
+
+    const onParticipants = async (payload) => {
+      if (payload?.roomId !== sessionId) return;
+      const first = payload?.participants?.[0];
+      if (!first?.socketId) return;
+
+      // doctor is initiator in prototype
+      if (meId === PROTO_DOCTOR_ID) await makeOfferTo(first.socketId);
+    };
+
+    const onUserJoined = async (payload) => {
+      if (payload?.roomId !== sessionId) return;
+      if (!payload?.socketId) return;
+
+      if (meId === PROTO_DOCTOR_ID) await makeOfferTo(payload.socketId);
+    };
+
+    const onOfferEvt = async ({ roomId, offer, fromSocketId }) => {
+      if (roomId !== sessionId) return;
+      remoteSocketIdRef.current = fromSocketId;
+
+      await startLocalMedia();
+      const pc = ensurePC();
+
+      await pc.setRemoteDescription(offer);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      sendAnswer(sessionId, answer, fromSocketId);
+    };
+
+    const onAnswerEvt = async ({ roomId, answer }) => {
+      if (roomId !== sessionId) return;
+      const pc = ensurePC();
+      await pc.setRemoteDescription(answer);
+    };
+
+    const onIceEvt = async ({ roomId, candidate }) => {
+      if (roomId !== sessionId) return;
+      const pc = ensurePC();
+      if (candidate) await pc.addIceCandidate(candidate);
+    };
+
+    socket.on('video-room-participants', onParticipants);
+    socket.on('user-joined-video', onUserJoined);
+    socket.on('offer', onOfferEvt);
+    socket.on('answer', onAnswerEvt);
+    socket.on('ice-candidate', onIceEvt);
+
+    // eager media so camera prompt happens immediately
+    startLocalMedia().catch(() => {});
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
+
+      socket.off('video-room-participants', onParticipants);
+      socket.off('user-joined-video', onUserJoined);
+      socket.off('offer', onOfferEvt);
+      socket.off('answer', onAnswerEvt);
+      socket.off('ice-candidate', onIceEvt);
+
+      leaveVideoRoom(sessionId, meId);
+
+      try {
+        pcRef.current?.close();
+      } catch {}
+      pcRef.current = null;
+
+      const s = localStreamRef.current;
+      if (s) s.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+      remoteSocketIdRef.current = null;
     };
-  }, []);
+  }, [isConnected, socket, sessionId, meId, meType]);
+
+  useEffect(() => {
+    const s = localStreamRef.current;
+    if (!s) return;
+    s.getVideoTracks().forEach(t => (t.enabled = !!videoEnabled));
+  }, [videoEnabled]);
+
+  useEffect(() => {
+    const s = localStreamRef.current;
+    if (!s) return;
+    s.getAudioTracks().forEach(t => (t.enabled = !!audioEnabled));
+  }, [audioEnabled]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const endCall = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    // Navigate back or show call ended screen
-    window.history.back();
-  };
-
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
-    // Implement recording logic
+  const hangup = () => {
+    // best-effort: notify room
+    endCall?.(sessionId, meId);
+    if (meType === 'patient') nav('/patient/video-sessions');
+    else nav('/doctor/video-sessions');
   };
 
   return (
@@ -87,40 +223,30 @@ const VideoCall = () => {
           <div className="lg:col-span-2 space-y-4">
             {/* Remote Video (Patient) */}
             <div className="bg-gray-800 rounded-xl overflow-hidden relative h-[400px]">
-              <div ref={remoteVideoRef} className="w-full h-full bg-gray-700 flex items-center justify-center">
-                {/* Placeholder for patient video */}
-                <div className="text-center">
-                  <div className="w-32 h-32 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FaUser className="text-6xl text-white" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-white">Emma Davis</h3>
-                  <p className="text-gray-300">Patient</p>
+              <video
+                ref={remoteVideoEl}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover bg-black"
+              />
+              {!isConnected && (
+                <div className="absolute inset-0 flex items-center justify-center text-white bg-black/50">
+                  Reconnecting…
                 </div>
-              </div>
-              
-              {/* Connection Status */}
-              <div className="absolute top-4 left-4">
-                <div className="flex items-center gap-2 bg-black/50 text-white px-3 py-1 rounded-full">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  Connected
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Local Video (Doctor) */}
             <div className="bg-gray-800 rounded-xl overflow-hidden relative h-[200px]">
-              <div ref={localVideoRef} className="w-full h-full bg-gray-900 flex items-center justify-center">
-                {/* Placeholder for doctor video */}
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <FaUser className="text-4xl text-white" />
-                  </div>
-                  <h3 className="font-semibold text-white">Dr. Satyal</h3>
-                </div>
-              </div>
-              
+              <video
+                ref={localVideoEl}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover bg-black"
+              />
               <div className="absolute top-2 right-2 text-sm text-white bg-black/50 px-2 py-1 rounded">
-                You
+                You ({meId})
               </div>
             </div>
           </div>
@@ -136,7 +262,7 @@ const VideoCall = () => {
               
               <div className="flex justify-center gap-4 mb-4">
                 <button
-                  onClick={() => setVideoEnabled(!videoEnabled)}
+                  onClick={() => setVideoEnabled(v => !v)}
                   className={`w-14 h-14 rounded-full flex items-center justify-center ${
                     videoEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
                   } transition`}
@@ -149,7 +275,7 @@ const VideoCall = () => {
                 </button>
                 
                 <button
-                  onClick={() => setAudioEnabled(!audioEnabled)}
+                  onClick={() => setAudioEnabled(a => !a)}
                   className={`w-14 h-14 rounded-full flex items-center justify-center ${
                     audioEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
                   } transition`}
@@ -161,89 +287,41 @@ const VideoCall = () => {
                   )}
                 </button>
                 
-                <button
-                  onClick={toggleRecording}
-                  className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                    isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
-                  } transition`}
-                >
-                  <div className={`w-6 h-6 rounded ${isRecording ? 'bg-white' : 'bg-red-500'}`}></div>
-                </button>
+                <div className="w-14 h-14 rounded-full flex items-center justify-center bg-gray-700">
+                  <FaStethoscope className="text-white text-xl" />
+                </div>
               </div>
               
               <button
-                onClick={endCall}
+                onClick={hangup}
                 className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg flex items-center justify-center gap-2 transition"
               >
                 <FaPhoneSlash />
                 End Call
               </button>
+              
+              <div className="mt-3 text-sm text-gray-300 text-center">
+                With: {otherId} • {formatTime(callDuration)}
+              </div>
             </div>
 
             {/* Patient Notes */}
             <div className="bg-gray-800 rounded-xl p-4">
               <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                 <FaClipboard />
-                Consultation Notes
+                Notes
               </h3>
-              
               <textarea
                 value={patientNotes}
                 onChange={(e) => setPatientNotes(e.target.value)}
-                placeholder="Enter consultation notes here..."
+                placeholder="Notes…"
                 className="w-full h-32 bg-gray-900 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-red-500"
               />
-              
-              <div className="flex gap-2 mt-3">
-                <button className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg transition">
-                  Save
-                </button>
-                <button className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition">
-                  Prescribe
-                </button>
-              </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="bg-gray-800 rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-3">Quick Actions</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <button className="bg-gray-700 hover:bg-gray-600 text-white p-3 rounded-lg transition">
-                  Share Screen
-                </button>
-                <button className="bg-gray-700 hover:bg-gray-600 text-white p-3 rounded-lg transition">
-                  Whiteboard
-                </button>
-                <button className="bg-gray-700 hover:bg-gray-600 text-white p-3 rounded-lg transition">
-                  File Share
-                </button>
-                <button className="bg-gray-700 hover:bg-gray-600 text-white p-3 rounded-lg transition">
-                  Invite Expert
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Status Bar */}
-        <div className="max-w-6xl mx-auto mt-4">
-          <div className="bg-gray-800 rounded-lg p-3 flex items-center justify-between text-white text-sm">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Video: {videoEnabled ? 'On' : 'Off'}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Audio: {audioEnabled ? 'On' : 'Off'}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500' : 'bg-gray-500'}`}></div>
-                Recording: {isRecording ? 'Active' : 'Inactive'}
-              </div>
-            </div>
-            <div className="text-gray-300">
-              Patient: Emma Davis • Follow-up Consultation
+            {/* Room Info */}
+            <div className="bg-gray-800 rounded-xl p-4 text-white text-sm">
+              Room: {sessionId}
             </div>
           </div>
         </div>

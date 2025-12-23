@@ -1,7 +1,7 @@
 // OnePatientChat.jsx (Updated with better socket handling)
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import DoctorNavbar from '../../doctorComponent/DoctorNavbar';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   FaPaperPlane, 
   FaVideo, 
@@ -14,42 +14,40 @@ import {
 } from 'react-icons/fa';
 import { useSocket } from '../../contexts/SocketContext';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const PROTO_DOCTOR_ID = 'doctor@gmail.com';
+const PROTO_PATIENT_ID = 'patient@gmail.com';
+
 const OnePatientChat = () => {
+  const nav = useNavigate();
   const { patientId } = useParams();
-  const { 
-    socket, 
-    isConnected, 
-    joinChatRoom, 
-    leaveChatRoom, 
-    sendMessage, 
+  const {
+    isConnected,
+    currentUser,
+    joinChatRoom,
+    leaveChatRoom,
+    sendMessage,
     onReceiveMessage,
     onTyping,
-    sendTyping
+    sendTyping,
+    scheduleCall,
+    joinVideoRoom,
+    startCall
   } = useSocket();
-  
+
+  const doctorId = currentUser?.id || PROTO_DOCTOR_ID;
+  // enforce prototype pair
+  const fixedPatientId = PROTO_PATIENT_ID;
+  const roomId = useMemo(() => `chat_${PROTO_DOCTOR_ID}_${PROTO_PATIENT_ID}`, []);
+  const callRoomId = useMemo(() => `call_${PROTO_DOCTOR_ID}_${PROTO_PATIENT_ID}`, []);
+
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    { 
-      id: 1, 
-      text: 'Hello Doctor, I have a question about my medication.', 
-      sender: 'patient', 
-      senderId: patientId,
-      timestamp: '09:30 AM',
-      status: 'delivered'
-    },
-    { 
-      id: 2, 
-      text: 'Hello John, what would you like to know?', 
-      sender: 'doctor', 
-      senderId: 'doctor-1',
-      timestamp: '09:31 AM',
-      status: 'read'
-    }
-  ]);
-  
+  const [messages, setMessages] = useState([]); // now loaded from API + realtime
+
   const [patient, setPatient] = useState({
-    name: 'John Smith',
-    lastSeen: '10 minutes ago',
+    name: String(patientId || 'Patient'),
+    lastSeen: '—',
     online: true,
     isTyping: false
   });
@@ -57,71 +55,118 @@ const OnePatientChat = () => {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  useEffect(() => {
-    if (!isConnected) return;
+  const toUiMessage = (m) => {
+    const ts = m?.createdAt || m?.timestamp || new Date().toISOString();
+    const display = new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const id = m?.clientMessageId || m?.id || m?._id || `${ts}-${Math.random()}`;
 
-    const roomId = `doctor-patient-${patientId}`;
-    
-    // Join chat room
-    joinChatRoom(roomId, 'doctor-1', 'doctor');
+    const senderIdRaw = m?.senderId ?? m?.from ?? m?.userId ?? m?.sender?.id ?? m?.sender;
+    const senderIdStr = senderIdRaw != null ? String(senderIdRaw) : '';
 
-    // Listen for incoming messages
-    onReceiveMessage((incomingMessage) => {
-      if (incomingMessage.roomId === roomId) {
-        setMessages(prev => [...prev, incomingMessage.message]);
-      }
-    });
+    // Prefer senderId matching; fall back to explicit role fields.
+    let senderType =
+      senderIdStr && String(doctorId) === senderIdStr ? 'doctor' :
+      senderIdStr && String(PROTO_DOCTOR_ID) === senderIdStr ? 'doctor' :
+      senderIdStr && String(fixedPatientId) === senderIdStr ? 'patient' :
+      senderIdStr && String(patientId) === senderIdStr ? 'patient' :
+      (m?.senderType === 'doctor' || m?.senderType === 'patient') ? m.senderType :
+      (m?.sender === 'doctor' || m?.sender === 'patient') ? m.sender :
+      'patient';
 
-    // Listen for typing indicators
-    onTyping(({ roomId, userId, isTyping }) => {
-      if (roomId === roomId && userId === patientId) {
-        setPatient(prev => ({ ...prev, isTyping }));
-      }
-    });
-
-    // Cleanup on unmount
-    return () => {
-      leaveChatRoom(roomId);
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+    return {
+      id,
+      text: m?.text || '',
+      sender: senderType, // 'doctor' | 'patient'
+      senderId: senderIdStr,
+      timestamp: display,
+      timestampISO: ts,
+      status: m?.status || (m?.delivered ? 'delivered' : undefined),
     };
-  }, [isConnected, patientId, joinChatRoom, leaveChatRoom, onReceiveMessage, onTyping]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    if (!isConnected || !doctorId || !patientId) return;
+
+    let offReceive = () => {};
+    let offTyping = () => {};
+
+    (async () => {
+      // ensure room exists (prototype)
+      await fetch(`${API_URL}/api/chat/room`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doctorId, patientId })
+      }).catch(() => {});
+
+      // load history
+      const history = await fetch(`${API_URL}/api/chat/${encodeURIComponent(roomId)}/messages?limit=50`)
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null);
+
+      if (history?.messages?.length) setMessages(history.messages.map(toUiMessage));
+
+      // join + realtime
+      joinChatRoom(roomId, doctorId, 'doctor');
+
+      const handleIncoming = (payload) => {
+        if (payload?.roomId !== roomId) return;
+        const incoming = toUiMessage(payload.message);
+        setMessages((prev) => (prev.some(x => x.id === incoming.id) ? prev : [...prev, incoming]));
+      };
+
+      const handleTypingEvt = ({ roomId: evtRoomId, userId, isTyping }) => {
+        if (evtRoomId !== roomId) return;
+        if (String(userId) !== String(patientId)) return;
+        setPatient(prev => ({ ...prev, isTyping: !!isTyping }));
+      };
+
+      onReceiveMessage(handleIncoming);
+      onTyping(handleTypingEvt);
+
+      // best-effort cleanup via socketService helper if available
+      offReceive = () => (typeof window !== 'undefined' ? null : null);
+      offTyping = () => (typeof window !== 'undefined' ? null : null);
+    })();
+
+    return () => {
+      leaveChatRoom(roomId);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      offReceive();
+      offTyping();
+    };
+  }, [API_URL, isConnected, doctorId, patientId, roomId, joinChatRoom, leaveChatRoom, onReceiveMessage, onTyping]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   const handleTyping = () => {
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    sendTyping(`doctor-patient-${patientId}`, 'doctor-1', true);
-    
-    typingTimeoutRef.current = setTimeout(() => {
-      sendTyping(`doctor-patient-${patientId}`, 'doctor-1', false);
-    }, 1000);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    sendTyping(roomId, doctorId, true);
+    typingTimeoutRef.current = setTimeout(() => sendTyping(roomId, doctorId, false), 900);
   };
 
   const sendMessageHandler = (e) => {
     e.preventDefault();
     if (!message.trim() || !isConnected) return;
 
-    const roomId = `doctor-patient-${patientId}`;
-    const newMessage = sendMessage(roomId, message, 'doctor-1', 'doctor');
-    
-    if (newMessage) {
-      setMessages(prev => [...prev, newMessage]);
+    const sent = sendMessage(roomId, message, doctorId, 'doctor');
+    if (sent) {
+      setMessages(prev => [...prev, toUiMessage(sent)]);
       setMessage('');
-      
-      // Stop typing indicator
-      sendTyping(roomId, 'doctor-1', false);
+      sendTyping(roomId, doctorId, false);
     }
+  };
+
+  const startVideoCallNow = () => {
+    if (!isConnected) return;
+    const now = new Date().toISOString();
+
+    scheduleCall(callRoomId, PROTO_DOCTOR_ID, PROTO_PATIENT_ID, now);
+    joinVideoRoom(callRoomId, PROTO_DOCTOR_ID, 'doctor', currentUser || { id: PROTO_DOCTOR_ID, type: 'doctor' });
+    startCall(callRoomId, PROTO_DOCTOR_ID, PROTO_PATIENT_ID);
+
+    nav(`/doctor/video-call/${encodeURIComponent(callRoomId)}`);
   };
 
   return (
@@ -174,7 +219,10 @@ const OnePatientChat = () => {
               </div>
 
               <div className="space-y-4">
-                <button className="w-full flex items-center justify-center gap-2 bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition">
+                <button
+                  onClick={startVideoCallNow}
+                  className="w-full flex items-center justify-center gap-2 bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition"
+                >
                   <FaVideo />
                   Start Video Call
                 </button>
@@ -241,40 +289,45 @@ const OnePatientChat = () => {
               {/* Messages Container */}
               <div className="flex-1 p-4 overflow-y-auto max-h-[500px]">
                 <div className="space-y-4">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.sender === 'doctor' ? 'justify-end' : 'justify-start'}`}
-                    >
+                  {messages.map((msg) => {
+                    const isDoctor = msg.sender === 'doctor';
+                    return (
                       <div
-                        className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                          msg.sender === 'doctor'
-                            ? 'bg-red-500 text-white rounded-br-none'
-                            : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                        }`}
+                        key={msg.id}
+                        className={`flex ${isDoctor ? 'justify-end' : 'justify-start'}`}
                       >
-                        <p>{msg.text}</p>
-                        <div className={`text-xs mt-1 flex items-center gap-1 ${
-                          msg.sender === 'doctor' ? 'text-red-100' : 'text-gray-500'
-                        }`}>
-                          <FaClock className="text-xs" />
-                          {msg.timestamp}
-                          {msg.sender === 'doctor' && msg.status && (
-                            <>
-                              <span className="mx-1">•</span>
-                              {msg.status === 'read' ? (
-                                <FaCheckDouble className="text-blue-400" />
-                              ) : msg.status === 'delivered' ? (
-                                <FaCheckDouble />
-                              ) : (
-                                <span>Sent</span>
-                              )}
-                            </>
-                          )}
+                        <div
+                          className={`max-w-[70%] rounded-2xl px-4 py-2 ${
+                            isDoctor
+                              ? 'bg-red-500 text-white rounded-br-none'
+                              : 'bg-green-100 text-green-900 rounded-bl-none border border-green-200'
+                          }`}
+                        >
+                          <p>{msg.text}</p>
+                          <div
+                            className={`text-xs mt-1 flex items-center gap-1 ${
+                              isDoctor ? 'text-red-100' : 'text-green-700'
+                            }`}
+                          >
+                            <FaClock className="text-xs" />
+                            {msg.timestamp}
+                            {msg.sender === 'doctor' && msg.status && (
+                              <>
+                                <span className="mx-1">•</span>
+                                {msg.status === 'read' ? (
+                                  <FaCheckDouble className="text-blue-400" />
+                                ) : msg.status === 'delivered' ? (
+                                  <FaCheckDouble />
+                                ) : (
+                                  <span>Sent</span>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
               </div>

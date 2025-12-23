@@ -1,86 +1,57 @@
 // PatientChats.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import DoctorNavbar from '../../doctorComponent/DoctorNavbar';
 import { Link } from 'react-router-dom';
 import { FaCommentMedical, FaUserCircle, FaClock } from 'react-icons/fa';
-import socket from '../../utils/socket';
+import { useSocket } from '../../contexts/SocketContext';
+
+const PROTO_PATIENT_ID = 'patient@gmail.com';
 
 const PatientChats = () => {
+  const { socket, isConnected } = useSocket();
+
   const [patients, setPatients] = useState([
     {
-      id: 1,
-      name: 'John Smith',
-      lastMessage: 'Thank you for the consultation, feeling much better now!',
-      time: '10 min ago',
+      id: PROTO_PATIENT_ID,
+      name: 'patient@gmail.com',
+      lastMessage: '—',
+      time: '—',
       unread: 0,
-      online: true
-    },
-    {
-      id: 2,
-      name: 'Sarah Williams',
-      lastMessage: 'When should I take the medication?',
-      time: '25 min ago',
-      unread: 2,
-      online: false
-    },
-    {
-      id: 3,
-      name: 'Robert Johnson',
-      lastMessage: 'Feeling much better now!',
-      time: '1 hour ago',
-      unread: 0,
-      online: true
-    },
-    {
-      id: 4,
-      name: 'Lisa Anderson',
-      lastMessage: 'Can we reschedule to tomorrow?',
-      time: '2 hours ago',
-      unread: 1,
       online: false
     }
   ]);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [onlinePatients, setOnlinePatients] = useState(0);
 
   useEffect(() => {
-    // Connect to socket for real-time updates
-    socket.on('patient-online', (patientId) => {
-      setPatients(prev => prev.map(p => 
-        p.id === patientId ? { ...p, online: true } : p
-      ));
-    });
+    if (!socket || !isConnected) return;
 
-    socket.on('patient-offline', (patientId) => {
-      setPatients(prev => prev.map(p => 
-        p.id === patientId ? { ...p, online: false } : p
-      ));
-    });
+    const markOnline = (userId, online) => {
+      setPatients(prev => prev.map(p => (String(p.id) === String(userId) ? { ...p, online } : p)));
+    };
 
-    socket.on('new-message', (data) => {
-      setPatients(prev => prev.map(p => 
-        p.id === data.patientId 
-          ? { 
-              ...p, 
-              lastMessage: data.message,
-              time: 'Just now',
-              unread: p.unread + 1
-            } 
-          : p
-      ));
-    });
+    const onUserOnline = ({ userId }) => markOnline(userId, true);
+    const onUserOffline = ({ userId }) => markOnline(userId, false);
+    const onPresence = ({ userId, status }) => markOnline(userId, status === 'online');
+
+    socket.on('user-online', onUserOnline);
+    socket.on('user-offline', onUserOffline);
+    socket.on('presence-update', onPresence);
 
     return () => {
-      socket.off('patient-online');
-      socket.off('patient-offline');
-      socket.off('new-message');
+      socket.off('user-online', onUserOnline);
+      socket.off('user-offline', onUserOffline);
+      socket.off('presence-update', onPresence);
     };
-  }, []);
+  }, [socket, isConnected]);
 
-  const filteredPatients = patients.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredPatients = useMemo(
+    () => patients.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    [patients, searchTerm]
   );
+
+  const onlineCount = useMemo(() => patients.filter(p => p.online).length, [patients]);
+  const unreadCount = useMemo(() => patients.reduce((sum, p) => sum + (p.unread || 0), 0), [patients]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -165,13 +136,13 @@ const PatientChats = () => {
                 <div className="mt-6 flex flex-wrap gap-4 justify-center">
                   <div className="text-center">
                     <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                      <span className="text-2xl font-bold text-green-600">2</span>
+                      <span className="text-2xl font-bold text-green-600">{onlineCount}</span>
                     </div>
                     <p className="text-sm text-gray-600">Online</p>
                   </div>
                   <div className="text-center">
                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                      <span className="text-2xl font-bold text-blue-600">3</span>
+                      <span className="text-2xl font-bold text-blue-600">{unreadCount}</span>
                     </div>
                     <p className="text-sm text-gray-600">Unread</p>
                   </div>
