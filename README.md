@@ -162,7 +162,7 @@ ArogYam/
 
 ## Documentation
 
-- **Architecture Details**: See `.github/copilot-instructions.md`
+- **Architecture Details**: See `.github/Architecture.md`
 - **API Docs**: See API section above
 - **Database Schema**: Mongoose models in `backend/Models/`
 
