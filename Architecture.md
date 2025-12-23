@@ -1,4 +1,4 @@
-# ArogYam: AI Coding Agent Instructions
+# ArogYam
 
 ## Project Overview
 **ArogYam** is a full-stack telemedicine platform connecting patients with doctors via video/voice/chat consultations and appointment booking. The architecture separates **Patient** and **Doctor** roles with distinct authentication, dashboards, and real-time communication flows.
