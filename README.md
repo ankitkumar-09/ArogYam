@@ -1,17 +1,17 @@
-# 🏥 ArogYam
+# ArogYam
 **Connect Patients with Doctors. Consult Anywhere. Anytime.**
 
 A full-stack telemedicine platform with appointment booking, real-time video/voice calls, and instant chat.
 
 ---
 
-## ✨ Quick Features
+## Quick Features
 
-🩺 **Doctor Profiles** • 📅 **Smart Booking** • 📹 **Video Calls** • 💬 **Live Chat** • 💳 **Payments**
+Doctor Profiles • Smart Booking • Video Calls • Live Chat • Payments
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ```
 Frontend:  React 19 • Vite • TailwindCSS • Socket.io Client
@@ -21,7 +21,7 @@ Auth:      JWT • Bcrypt
 
 ---
 
-## � Quick Start
+## Quick Start
 
 ### Backend
 ```bash
@@ -38,23 +38,23 @@ npm run dev  # Runs on http://localhost:5173
 
 ---
 
-## 📊 Architecture Overview
+## Architecture Overview
 
 ### **Patient Booking Flow**
 
 ```mermaid
 flowchart TD
-    A["👤 Patient Login/Register"] --> B["🔍 Browse Available Doctors"]
-    B --> C["👨‍⚕️ Select Doctor"]
-    C --> D["📅 View Available Slots"]
-    D --> E["⏰ Choose Date & Time"]
-    E --> F["💳 Payment Processing"]
+    A["Patient Login/Register"] --> B["Browse Available Doctors"]
+    B --> C["Select Doctor"]
+    C --> D["View Available Slots"]
+    D --> E["Choose Date & Time"]
+    E --> F["Payment Processing"]
     F --> G{Payment Successful?}
-    G -->|Yes| H["✅ Appointment Confirmed"]
-    G -->|No| I["❌ Payment Failed"]
+    G -->|Yes| H["Appointment Confirmed"]
+    G -->|No| I["Payment Failed"]
     I --> F
-    H --> J["📱 Real-time Notification"]
-    J --> K["💬 Chat Opens | 📹 Video Call"]
+    H --> J["Real-time Notification"]
+    J --> K["Chat Opens | Video Call"]
     
     style A fill:#e1f5ff
     style H fill:#c8e6c9
@@ -66,8 +66,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["👤 Patient"] -->|join:chat| B["🌐 Socket.io Server"]
-    B -->|Store Connection| C["👨‍⚕️ Doctor"]
+    A["Patient"] -->|join:chat| B["Socket.io Server"]
+    B -->|Store Connection| C["Doctor"]
     
     A -->|send:message| B
     B -->|broadcast| C
@@ -94,16 +94,16 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["🚀 Client Request"] --> B["🔐 CORS & Middleware"]
-    B --> C["🛣️ Route Matching"]
-    C --> D["🔑 JWT Authentication"]
+    A["Client Request"] --> B["CORS & Middleware"]
+    B --> C["Route Matching"]
+    C --> D["JWT Authentication"]
     D --> E{Auth Valid?}
-    E -->|No| F["❌ 401 Unauthorized"]
-    E -->|Yes| G["⚙️ Controller Logic"]
-    G --> H["💾 Database Operations"]
-    H --> I["✅ JSON Response"]
-    I --> J["📡 Socket.io Notify"]
-    J --> K["📱 Client Update"]
+    E -->|No| F["401 Unauthorized"]
+    E -->|Yes| G["Controller Logic"]
+    G --> H["Database Operations"]
+    H --> I["JSON Response"]
+    I --> J["Socket.io Notify"]
+    J --> K["Client Update"]
     
     style A fill:#e8f5e9
     style K fill:#c8e6c9
@@ -112,7 +112,7 @@ flowchart LR
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ArogYam/
@@ -137,30 +137,30 @@ ArogYam/
 
 ---
 
-## � Key Endpoints
+## Key Endpoints
 
 | Endpoint | Method | Auth | Purpose |
 |----------|--------|------|---------|
-| `/doctors/register` | POST | ❌ | Doctor sign-up |
-| `/doctors/available` | GET | ❌ | Browse doctors |
-| `/patients/register` | POST | ❌ | Patient sign-up |
-| `/appointments/book` | POST | ✅ | Book appointment |
-| `/api/chat` | WS | ✅ | Real-time chat |
-| `/api/calls` | WS | ✅ | Video call signaling |
+| `/doctors/register` | POST | No | Doctor sign-up |
+| `/doctors/available` | GET | No | Browse doctors |
+| `/patients/register` | POST | No | Patient sign-up |
+| `/appointments/book` | POST | Yes | Book appointment |
+| `/api/chat` | WS | Yes | Real-time chat |
+| `/api/calls` | WS | Yes | Video call signaling |
 
 ---
 
-## � Security
+## Security
 
-- ✅ Password hashing with **Bcrypt**
-- ✅ JWT-based authentication
-- ✅ CORS protection
-- ✅ Rate limiting on login
-- ✅ Environment variable secrets
+- Password hashing with **Bcrypt**
+- JWT-based authentication
+- CORS protection
+- Rate limiting on login
+- Environment variable secrets
 
 ---
 
-## � Documentation
+## Documentation
 
 - **Architecture Details**: See `.github/copilot-instructions.md`
 - **API Docs**: See API section above
@@ -168,7 +168,7 @@ ArogYam/
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 ```bash
 git checkout -b feature/your-feature
@@ -178,4 +178,4 @@ git push origin feature/your-feature
 
 ---
 
-**Made with ❤️ for healthcare. Last Updated: Dec 23, 2025**
+**Made for healthcare. Last Updated: Dec 23, 2025**
