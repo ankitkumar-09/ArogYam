@@ -1,4 +1,3 @@
-// App.jsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
@@ -23,7 +22,7 @@ import Settings from "./pages/Doctor/Settings";
 import AppointmentBooking from "./pages/Patient/AppointmentBooking";
 import DoctorBookingProcess from "./pages/Patient/DoctorBookingProcess"; // added
 import VerifyEmailPage from "./component/VerifyEmailPage";
-import Payment from "./component/Payment"; // NEW
+import Payment from "./component/Payment"; 
 import BookedAppointment from "./pages/Patient/BookedAppointment";
 import PatientChatsPage from "./pages/Patient/PatientChats";
 import PatientVideoCall from "./pages/Patient/PatientVideoCall";
@@ -31,7 +30,6 @@ import PatientVideoCall from "./pages/Patient/PatientVideoCall";
 const App = () => {
   return (
     <Router>
-      {/* provide patient context to the app */}
       <PatientProvider>
         <DoctorProvider>
           <Routes>

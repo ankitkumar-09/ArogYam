@@ -5,7 +5,7 @@ import { useSocket } from '../../contexts/SocketContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const PROTO_DOCTOR_ID = 'doctor@gmail.com';
-const PROTO_PATIENT_ID = 'patient@gmail.com';
+const PROTO_PATIENT_ID = 'patient123@gmail.com';
 
 export default function PatientChats(){
   const { isConnected, currentUser, joinChatRoom, leaveChatRoom, sendMessage, onReceiveMessage, onTyping, sendTyping } = useSocket();
@@ -105,7 +105,7 @@ export default function PatientChats(){
     <div className="min-h-screen bg-gray-50">
       <PatientNavbar />
       <main className="pt-16 lg:pt-0 lg:pl-64 p-6">
-        <h1 className="text-xl font-semibold mb-4">Chats (Prototype)</h1>
+        <h1 className="text-xl font-semibold mb-4">Chats</h1>
 
         {!isConnected && <div className="text-sm text-yellow-700 bg-yellow-100 p-3 rounded mb-3">Reconnecting…</div>}
 

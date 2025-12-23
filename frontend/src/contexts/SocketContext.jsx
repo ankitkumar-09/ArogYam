@@ -17,7 +17,7 @@ export const SocketProvider = ({ children }) => {
   const [socketError, setSocketError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // ✅ Prototype-only identities
+  //  Prototype-only identities
   const PROTO_DOCTOR_ID = 'doctor@gmail.com';
   const PROTO_PATIENT_ID = 'patient@gmail.com';
 
@@ -26,7 +26,7 @@ export const SocketProvider = ({ children }) => {
     const path = typeof window !== 'undefined' ? window.location.pathname : '';
     const inferredType = path.startsWith('/patient') ? 'patient' : 'doctor';
 
-    // ✅ always force these two users (prevents backend allowlist rejection)
+    // always force these two users (prevents backend allowlist rejection)
     const forcedId = inferredType === 'patient' ? PROTO_PATIENT_ID : PROTO_DOCTOR_ID;
 
     try {
