@@ -1,191 +1,683 @@
-# ArogYam: AI Coding Agent Instructions
+# 🏥 ArogYam - Healthcare Appointment & Consultation Platform
 
-## Project Overview
-**ArogYam** is a full-stack telemedicine platform connecting patients with doctors via video/voice/chat consultations and appointment booking. The architecture separates **Patient** and **Doctor** roles with distinct authentication, dashboards, and real-time communication flows.
-
----
-
-## 🏗 Architecture Quick Reference
-
-### **Layered Stack**
-- **Frontend**: React 19 + Vite + TailwindCSS (SPA, port 5173)
-- **Backend**: Node.js + Express 5 + Socket.io (REST + WebSocket, port 3000)
-- **Database**: MongoDB + Mongoose ODM
-- **Auth**: JWT tokens + Bcrypt hashing
-- **Real-time**: Socket.io with 2-min connection state recovery
-
-### **Key Service Boundaries**
-1. **Doctor Routes** (`/doctors`) - Registration, profile, availability slots
-2. **Patient Routes** (`/patients`) - Registration, profile, search doctors
-3. **Appointment Routes** (`/appointments`) - Booking, cancellation, history
-4. **Chat/Call Routes** (`/api/chat`, `/api/calls`) - Messaging and call signaling
+ArogYam is a full-stack telemedicine and appointment management platform that connects patients with doctors for video consultations, voice calls, chat, and in-person appointments. Built with modern web technologies, it provides seamless scheduling, real-time communication, and payment integration.
 
 ---
 
-## 🔑 Critical Patterns to Know
+## 📋 Table of Contents
 
-### **Authentication & Authorization**
-- **Login Response**: Returns JWT token (stored in localStorage on frontend)
-- **Protected Routes**: Middleware checks `Authorization: Bearer <token>` header
-- **Dual Auth**: Separate `doctorMiddleware` and `patientMiddleware` verify different user types
-- **Rate Limiting**: Login attempts throttled on doctor routes (`doctorLoginLimiter`)
-- **Example**: `GET /doctors/profile` requires valid doctor JWT; patients get 401
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Tech Stack](#-tech-stack)
+- [System Architecture](#-system-architecture)
+- [Project Structure](#-project-structure)
+- [Setup & Installation](#-setup--installation)
+- [Development Workflow](#-development-workflow)
+- [API Documentation](#-api-documentation)
+- [Real-time Communication](#-real-time-communication)
+- [Database Schema](#-database-schema)
 
-### **Appointment Booking Flow (Critical)**
+---
+
+## 🎯 Overview
+
+ArogYam enables a modern healthcare experience by providing:
+- **Appointment Booking**: Patients can browse available doctors and book appointments by time slots
+- **Multi-mode Consultations**: Support for video, voice, chat, and in-person consultations
+- **Real-time Communication**: Socket.io powered instant messaging and video calls
+- **Doctor Profiles**: Detailed doctor profiles with specialization, experience, qualifications, and consultation fees
+- **Patient Dashboard**: Appointment history, upcoming bookings, and chat with doctors
+- **Doctor Dashboard**: Manage appointments, patient interactions, notes, and case studies
+
+---
+
+## ✨ Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Doctor Registration & Profile** | Doctors can register, set specialization, qualifications, languages, and consultation fees |
+| **Patient Registration & Profile** | Patients create profiles with medical information (blood group, height, weight, medical history) |
+| **Appointment Booking** | Dynamic slot booking with multiple consultation types and fee structures |
+| **Real-time Video/Voice Calls** | WebRTC-based peer-to-peer communication with Socket.io signaling |
+| **Instant Chat** | Real-time messaging between doctors and patients |
+| **Payment Integration** | Secure payment processing for consultations and contact reveals |
+| **Appointment History** | Track past and upcoming appointments with detailed information |
+| **Doctor Discovery** | Search and filter available doctors by specialization, experience, and ratings |
+| **Medical Notes** | Doctors can maintain notes and case studies for patient interactions |
+| **Email Verification** | Secure user registration with email verification |
+
+---
+
+## 🛠 Tech Stack
+
+### **Backend**
+| Technology | Purpose |
+|------------|---------|
+| **Node.js** | JavaScript runtime for server-side development |
+| **Express.js v5.2.1** | Web framework for REST APIs |
+| **MongoDB** | NoSQL database for data persistence |
+| **Mongoose v9.0.1** | ODM (Object Data Modeling) for MongoDB |
+| **Socket.io v4.8.1** | Real-time bidirectional communication |
+| **JWT (jsonwebtoken v9.0.3)** | Authentication & authorization tokens |
+| **Bcrypt v6.0.0** | Password hashing and encryption |
+| **CORS v2.8.5** | Cross-Origin Resource Sharing |
+| **Dotenv v17.2.3** | Environment variable management |
+
+### **Frontend**
+| Technology | Purpose |
+|------------|---------|
+| **React v19.2.0** | UI component library |
+| **Vite v7.2.4** | Next-gen frontend build tool |
+| **React Router v7.10.1** | Client-side routing |
+| **Socket.io Client v4.8.1** | Real-time communication client |
+| **Axios v1.13.2** | HTTP client for API requests |
+| **TailwindCSS v4.1.18** | Utility-first CSS framework |
+| **Lucide React v0.561.0** | Icon library |
+| **React Icons v5.5.0** | Additional icon set |
+
+---
+
+## 🏗 System Architecture
+
+### **High-Level Application Flow**
+
 ```
-Patient GET /doctors/available (discover)
-  → Patient GET /doctors/:doctorId/slots (see time slots)
-  → Patient POST /appointments/book (create appointment)
-    └─ Payload: { doctorId, patientId, type, scheduledAt, slotId, fee }
-    └─ Returns: Appointment document with status="pending"/"confirmed"
-  → Appointment stored in DB with `slotId` reference
-  → Socket.io notification sent to doctor (real-time update)
+┌─────────────────────────────────────────────────────────────────┐
+│                     ArogYam Platform Flow                       │
+└─────────────────────────────────────────────────────────────────┘
+
+                          Frontend (React + Vite)
+                    ┌──────────────────────────────┐
+                    │  Patient UI   │   Doctor UI  │
+                    │  • Dashboard  │ • Dashboard  │
+                    │  • Booking    │ • Slots Mgmt │
+                    │  • Chat       │ • Patients   │
+                    │  • Video Call │ • Notes      │
+                    └────────┬───────────────┬─────┘
+                             │               │
+                    ┌────────▼───────────────▼─────┐
+                    │   REST API + WebSocket       │
+                    │   (Express + Socket.io)      │
+                    └────────┬─────────────────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+    ┌───▼────────┐    ┌─────▼──────┐    ┌────────▼────────┐
+    │  MongoDB   │    │  JWT Token │    │ WebRTC Signaling│
+    │  Database  │    │ Management │    │   (Socket.io)   │
+    │            │    │            │    │                 │
+    │ • Doctors  │    │ • Auth     │    │ • Calls/Video   │
+    │ • Patients │    │ • Sessions │    │ • Messaging     │
+    │ • Appt     │    │            │    │ • Real-time     │
+    │ • Chat     │    │            │    │                 │
+    └────────────┘    └────────────┘    └─────────────────┘
 ```
 
-### **Real-time Communication (Socket.io)**
-- **Initialization**: Backend loads `Services/socket.js` which handles events
-- **Room-based Messaging**: Doctor-patient pairs use room ID like `doctor_${doctorId}_patient_${patientId}`
-- **WebRTC Signaling**: Video call offer/answer/ICE candidates sent via Socket.io
-- **P2P Streams**: Audio/video flows directly between clients; server doesn't relay media
-- **Auto-reconnect**: Clients reconnect within 2 minutes without losing state
-- **Key Events**: `join:chat`, `send:message`, `initiate:call`, `call:answer`, `ice:candidate`
+### **Request/Response Cycle**
 
-### **Context State Management (Frontend)**
-- **DoctorContext**: Stores logged-in doctor data, slots, appointments
-- **PatientContext**: Stores logged-in patient data, bookings, searches
-- **SocketContext**: Manages Socket.io connection instance
-- **Patterns**: Use `useContext(DoctorContext)` to access auth state; persist tokens in localStorage
+```
+┌──────────────────────────────────────────────────────────────┐
+│                 API Request Flow                             │
+└──────────────────────────────────────────────────────────────┘
 
-### **Slot Management**
-- **Doctor Creates Slots**: `POST /doctors/slots` with date range and times
-- **Slot Storage**: Legacy slots in `Doctor.slots` array; new approach uses `DoctorDaySchedule.slots`
-- **Booking**: When patient books, corresponding slot is marked "booked" or removed
-- **Time Zones**: Slots stored as YYYY-MM-DD + HH:mm strings to avoid TZ issues
+Client Request
+      │
+      ▼
+┌─────────────────────────────────────────┐
+│  CORS Validation & Middleware           │
+│  • app.use(cors())                      │
+│  • app.use(express.json())              │
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│  Route Matching                         │
+│  • /doctors → doctorRoutes              │
+│  • /patients → patientRoutes            │
+│  • /appointments → appointmentRoutes    │
+│  • /api/chat → chatRoutes               │
+│  • /api/calls → callRoutes              │
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│  Authentication Middleware              │
+│  • Verify JWT Token                     │
+│  • Check User Role (Doctor/Patient)     │
+│  • Rate Limiting                        │
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│  Controller Logic                       │
+│  • Process Request                      │
+│  • Business Logic                       │
+│  • Database Operations                  │
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│  Response & Error Handling              │
+│  • JSON Response                        │
+│  • HTTP Status Codes                    │
+│  • Error Messages                       │
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+           Response Sent
+```
+
+### **Real-time Communication Architecture**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│         Socket.io Real-time Communication                    │
+└──────────────────────────────────────────────────────────────┘
+
+Frontend (Client)          Backend (Server)       Frontend (Client)
+  Patient                 Socket.io Server          Doctor
+    │                         │                       │
+    │─ "join:chat" ─────────►│                       │
+    │                        │──► Store Connection ──│
+    │                        │◄─ "join:chat" ────────│
+    │                        │                       │
+    │─ "send:message" ──────►│                       │
+    │                        │──► "receive:message"──│
+    │                        │    (broadcast)        │
+    │◄─ "receive:message" ───│                       │
+    │                        │                       │
+    │─ "initiate:call" ─────►│                       │
+    │                        │──► "incoming:call" ──│
+    │                        │    (with offer)       │
+    │◄─ "call:answer" ───────│                       │
+    │    (with answer)       │                       │
+    │                        │                       │
+    ├─ WebRTC P2P ───────────────────────────────────┤
+    │ (Audio/Video Stream)                           │
+    └────────────────────────────────────────────────┘
+
+Features:
+• Connection State Recovery (max 2 min disconnect)
+• Automatic Reconnection
+• Fallback to Polling
+• Heartbeat (Ping/Pong every 25s)
+```
 
 ---
 
-## 🛠 Developer Workflows
+## 📁 Project Structure
 
-### **Starting Development (First Time)**
+### **Backend Structure**
+
+```
+backend/
+├── server.js                          # Main server entry point
+├── package.json                       # Dependencies
+├── .env                               # Environment variables (MONGODB_URI, JWT_SECRET, etc.)
+│
+├── Config/
+│   └── db.js                          # MongoDB connection setup
+│
+├── Models/                            # Mongoose schemas
+│   ├── doctor.model.js                # Doctor schema with slots, fees, specialization
+│   ├── patient.model.js               # Patient schema with medical info
+│   ├── appointment.model.js           # Appointment booking & tracking
+│   ├── ChatRoom.js                    # Chat room references
+│   ├── ChatMessage.js                 # Chat message storage
+│   ├── CallSchedule.js                # Video call scheduling
+│   └── bookingHistoryDoctorModel.js   # Doctor booking history
+│
+├── Routes/                            # Express route handlers
+│   ├── doctorRoutes.js                # GET /doctors, POST /doctors/register, /slots
+│   ├── patientRoutes.js               # GET /patients, POST /patients/register
+│   ├── appointmentRoutes.js           # GET /appointments, POST /appointments/book
+│   ├── chatRoutes.js                  # GET/POST /api/chat
+│   ├── callRoutes.js                  # GET/POST /api/calls
+│   └── adminRoutes.js                 # (Optional) Admin endpoints
+│
+├── Controllers/                       # Business logic
+│   ├── doctorController.js            # Doctor operations (register, profile, slots)
+│   ├── patientController.js           # Patient operations (register, profile, search)
+│   ├── appointmentContoller.js        # Appointment operations (book, cancel, history)
+│   ├── adminController.js             # Admin operations
+│   └── others
+│
+├── middlewares/                       # Authentication & validation
+│   ├── doctorMiddleware.js            # Verify JWT, rate limiting for doctors
+│   ├── patientMiddleware.js           # Verify JWT for patients
+│   ├── appointmentMiddleware.js       # Appointment validation
+│   └── adminMiddleware.js             # Admin auth
+│
+├── Services/
+│   └── socket.js                      # Socket.io event handlers
+│                                      # Events: join, message, call, disconnect
+│
+└── DataSeeder/                        # Development data
+    ├── doctor.seeder.js               # Sample doctor data
+    └── patient.seeder.js              # Sample patient data
+```
+
+### **Frontend Structure**
+
+```
+frontend/
+├── index.html                         # Entry point
+├── package.json                       # Dependencies
+├── vite.config.js                     # Vite bundler config
+├── eslint.config.js                   # Code linting rules
+├── tailwind.config.js                 # TailwindCSS config
+│
+├── src/
+│   ├── main.jsx                       # React app initialization
+│   ├── App.jsx                        # Main app component with routes
+│   ├── App.css                        # Global styles
+│   ├── index.css                      # Global CSS
+│   │
+│   ├── contexts/                      # React Context for state management
+│   │   ├── DoctorContext.jsx          # Doctor auth & data state
+│   │   ├── PatientContext.jsx         # Patient auth & data state
+│   │   └── SocketContext.jsx          # Socket.io connection state
+│   │
+│   ├── pages/                         # Full page components
+│   │   ├── Home.jsx                   # Landing page
+│   │   ├── NotFound.jsx               # 404 page
+│   │   │
+│   │   ├── Patient/
+│   │   │   ├── PatientRegister.jsx    # Patient sign-up
+│   │   │   ├── PatientDashboard.jsx   # Patient home dashboard
+│   │   │   ├── AppointmentBooking.jsx # Doctor discovery & booking
+│   │   │   ├── DoctorBookingProcess.jsx
+│   │   │   ├── BookedAppointment.jsx  # View booked appointments
+│   │   │   ├── PatientChats.jsx       # Chat with doctors
+│   │   │   ├── PatientVideoCall.jsx   # Video call interface
+│   │   │   └── PatientReviews.jsx     # Rate & review doctors
+│   │   │
+│   │   └── Doctor/
+│   │       ├── DoctorRegister.jsx     # Doctor sign-up
+│   │       ├── DoctorDashboard.jsx    # Doctor home dashboard
+│   │       ├── Appointments.jsx       # Manage appointments
+│   │       ├── PatientChats.jsx       # Chat with patients
+│   │       ├── OnePatientChat.jsx     # Individual chat thread
+│   │       ├── VideoSessionManagement.jsx
+│   │       ├── Notes.jsx              # Patient notes & records
+│   │       ├── CaseStudies.jsx        # Case studies
+│   │       ├── Medicines.jsx          # Prescribed medicines
+│   │       ├── ShareIdeas.jsx         # Share ideas/articles
+│   │       └── Settings.jsx           # Doctor account settings
+│   │
+│   ├── components/                    # Reusable components
+│   │   ├── Navbar.jsx                 # Common navigation
+│   │   ├── Footer.jsx                 # Footer
+│   │   ├── Payment.jsx                # Payment component
+│   │   ├── VerifyEmailPage.jsx        # Email verification
+│   │   └── Calender.jsx               # Date/time picker
+│   │
+│   ├── patientComponent/              # Patient-specific components
+│   │   ├── PatientNavbar.jsx          # Patient navbar
+│   │   ├── DoctorCard.jsx             # Doctor listing card
+│   │   ├── AppointmentCard.jsx        # Appointment card
+│   │   ├── AppointmentDeatilsModel.jsx # Modal for details
+│   │   └── PatientFooter.jsx          # Patient footer
+│   │
+│   ├── doctorComponent/               # Doctor-specific components
+│   │   ├── DoctorNavbar.jsx           # Doctor navbar
+│   │   ├── DoctorRegisterNavbar.jsx   # Registration navbar
+│   │   ├── DoctorPreviewModal.jsx     # Profile preview
+│   │   ├── UpcomingAppointments.jsx   # Upcoming list
+│   │   ├── TodoList.jsx               # Task list
+│   │   ├── VideoCall.jsx              # Video call component
+│   │   └── Footer.jsx                 # Doctor footer
+│   │
+│   ├── ProtectWrapper/                # Route protection HOC
+│   │   ├── DoctorProtectedWrapper.jsx # Verify doctor is logged in
+│   │   └── PatientProtectedWrapper.jsx # Verify patient is logged in
+│   │
+│   ├── utils/
+│   │   └── socket.js                  # Socket.io client setup
+│   │
+│   └── assets/
+│       ├── homeBackground.jpg
+│       ├── homeBackground.webp
+│       ├── noProfile.webp
+│       └── react.svg
+│
+└── public/                            # Static files
+```
+
+---
+
+## 🚀 Setup & Installation
+
+### **Prerequisites**
+- Node.js 14+ 
+- MongoDB (local or cloud - MongoDB Atlas)
+- Git
+- npm or yarn
+
+### **Environment Variables**
+
+Create `.env` files in both `backend/` and `frontend/`:
+
+**`backend/.env`**
+```env
+# Server
+PORT=3000
+NODE_ENV=development
+
+# Database
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/arogyam?retryWrites=true&w=majority
+# or local: MONGODB_URI=mongodb://localhost:27017/arogyam
+
+# JWT
+JWT_SECRET=your_jwt_secret_key_here
+JWT_EXPIRY=7d
+
+# Frontend URL (for CORS)
+FRONTEND_URL=http://localhost:5173
+
+# Email Service (optional)
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+```
+
+**`frontend/.env`**
+```env
+VITE_API_BASE_URL=http://localhost:3000
+VITE_SOCKET_URL=http://localhost:3000
+```
+
+### **Backend Setup**
+
 ```bash
-# Backend
-cd backend && npm install
-# Create .env with MONGODB_URI, JWT_SECRET, FRONTEND_URL
-npm start  # port 3000
+# Navigate to backend directory
+cd backend
 
-# Frontend (new terminal)
-cd frontend && npm install
-npm run dev  # port 5173
+# Install dependencies
+npm install
 
-# Verify health
+# Start development server
+npm start
+# or with nodemon for auto-reload
+npx nodemon server.js
+
+# Health check
 curl http://localhost:3000/api/health
 ```
 
-### **Adding a New Feature**
-1. **Define Data Model**: Add/modify schema in `backend/Models/`
-2. **Create Controller Logic**: Implement in `backend/Controllers/`
-3. **Add Route**: Define endpoint in `backend/Routes/`
-4. **Add Middleware**: Create validation/auth in `backend/middlewares/` if needed
-5. **Frontend Integration**: Call API via Axios in component, handle response with state
-6. **Real-time Updates** (if needed): Emit Socket.io event from controller, listen in frontend
+### **Frontend Setup**
 
-### **Common Commands**
-| Task | Command |
-|------|---------|
-| Backend health | `curl http://localhost:3000/api/health` |
-| Lint frontend | `cd frontend && npm run lint` |
-| Build production | `cd frontend && npm run build && cd ../backend && npm start` |
-| Seed test data | `node backend/DataSeeder/doctor.seeder.js` |
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+# Server runs on http://localhost:5173
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Lint code
+npm run lint
+```
 
 ---
 
-## ⚠️ Project-Specific Conventions
+## 👨‍💻 Development Workflow
 
-### **File Naming**
-- Controllers: `{resource}Controller.js` (e.g., `doctorController.js`)
-- Models: `{model}.model.js` or `{Model}.js` (inconsistently mixed—watch for both)
-- Routes: `{resource}Routes.js`
-- Middleware: `{resource}Middleware.js`
+### **Common Development Tasks**
 
-### **Error Handling**
-- Express handlers return `res.status(code).json({ success: false, message: "..." })`
-- No global error handler in current codebase; ensure try/catch in each controller
-- Mongoose validation errors automatically caught—wrap with try/catch
+| Task | Command | Notes |
+|------|---------|-------|
+| **Start Backend** | `cd backend && npm start` | Express server on port 3000 |
+| **Start Frontend** | `cd frontend && npm run dev` | Vite dev server on port 5173 |
+| **Lint Frontend** | `cd frontend && npm run lint` | ESLint code quality check |
+| **Build Frontend** | `cd frontend && npm run build` | Production build in `dist/` |
+| **Database Setup** | See MongoDB URI in `.env` | Ensure MongoDB is running |
+| **Seed Data** | `node backend/DataSeeder/doctor.seeder.js` | Load sample data for testing |
 
-### **Database Queries**
-- Always use Mongoose methods (`.findById()`, `.find()`, `.updateOne()`, `.deleteOne()`)
-- Populate references: `.populate('doctor').populate('patient')` on appointment queries
-- Indexes: Email fields are unique; add `.index: true` for frequently queried fields
+### **Key Development Patterns**
 
-### **API Response Format**
-```json
+#### **Authentication Flow**
+1. User registers → Password hashed with bcrypt → Stored in MongoDB
+2. User logs in → Password verified → JWT token generated
+3. Token stored in localStorage (frontend)
+4. Every protected request sends token in `Authorization` header
+5. Middleware verifies JWT → Request allowed/rejected
+
+#### **Appointment Booking Flow**
+```
+1. Patient searches doctors → GET /doctors/available
+2. Patient selects doctor → GET /doctors/:doctorId/slots
+3. Patient chooses slot → POST /appointments/book
+4. Payment processed → POST /payments/checkout (if applicable)
+5. Appointment confirmed → Email sent + entry in DB
+6. Real-time notification via Socket.io
+```
+
+#### **Real-time Communication**
+```
+1. Users open chat → Socket connection established
+2. Emit "join:chat" with room ID
+3. Send messages → Server broadcasts to all in room
+4. Video call initiated → WebRTC offer sent via Socket.io
+5. Peer answers → WebRTC connection established
+6. Audio/video streams flow directly P2P (not through server)
+```
+
+---
+
+## 📡 API Documentation
+
+### **Doctor Endpoints**
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/doctors/register` | ❌ | Register new doctor |
+| POST | `/doctors/login` | ❌ | Login (returns JWT) |
+| GET | `/doctors/available` | ❌ | List available doctors |
+| GET | `/doctors/:doctorId` | ❌ | Get doctor public profile |
+| GET | `/doctors/profile` | ✅ | Get own profile (doctor) |
+| PUT | `/doctors/profile` | ✅ | Update own profile |
+| POST | `/doctors/slots` | ✅ | Create availability slots |
+| GET | `/doctors/:doctorId/slots` | ❌ | View doctor's slots |
+
+### **Patient Endpoints**
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/patients/register` | ❌ | Register new patient |
+| POST | `/patients/login` | ❌ | Login (returns JWT) |
+| GET | `/patients/profile` | ✅ | Get own profile |
+| PUT | `/patients/profile` | ✅ | Update own profile |
+| GET | `/patients/appointments` | ✅ | View own appointments |
+
+### **Appointment Endpoints**
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/appointments/book` | ✅ | Book new appointment |
+| GET | `/appointments` | ✅ | List user's appointments |
+| GET | `/appointments/:appointmentId` | ✅ | Get appointment details |
+| PUT | `/appointments/:appointmentId/cancel` | ✅ | Cancel appointment |
+| GET | `/appointments/doctor/:doctorId` | ✅ | Doctor's appointments |
+
+### **Chat Endpoints**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chat/room` | Create/get chat room |
+| GET | `/api/chat/messages/:roomId` | Get message history |
+| POST | `/api/chat/message` | Save message to DB |
+
+### **WebSocket Events (Socket.io)**
+
+**Client → Server:**
+- `join:chat` - Join chat room
+- `send:message` - Send message
+- `initiate:call` - Start video call with offer
+- `call:answer` - Send answer to call
+- `ice:candidate` - Send ICE candidate
+- `end:call` - End video call
+- `disconnect` - Graceful disconnect
+
+**Server → Client:**
+- `receive:message` - New message arrives
+- `incoming:call` - Incoming call with offer
+- `call:answered` - Call accepted with answer
+- `ice:candidate` - ICE candidate received
+- `user:joined` - User joined room
+- `user:left` - User left room
+
+---
+
+## 🔌 Real-time Communication
+
+### **Socket.io Configuration**
+
+Located in `backend/Services/socket.js`:
+
+```javascript
+// Key features:
+- Bidirectional communication (websocket + polling fallback)
+- Connection State Recovery (up to 2 minutes)
+- Automatic reconnection with exponential backoff
+- Heartbeat: Ping every 25 seconds, timeout 60 seconds
+- Room-based messaging (doctor-patient pairs)
+```
+
+### **Video Call Implementation**
+
+1. **Signaling**: WebRTC offer/answer exchanged via Socket.io
+2. **Media Streams**: Audio/video captured using getUserMedia()
+3. **P2P Connection**: Direct peer-to-peer connection (not through server)
+4. **ICE Candidates**: Network path negotiation via Socket.io
+5. **Fallback**: If P2P fails, can fallback to TURN servers
+
+---
+
+## 💾 Database Schema
+
+### **Doctor Model** (`Models/doctor.model.js`)
+```javascript
 {
-  "success": true,
-  "data": { /* payload */ },
-  "message": "Operation completed"
+  name: String (required),
+  email: String (required, unique),
+  phone: String (required),
+  password: String (hashed),
+  specialization: String,
+  experience: Number,
+  qualifications: [String],
+  languages: [String],
+  consultationFee: {
+    chat: Number,
+    voice: Number,
+    video: Number
+  },
+  contactRevealFee: Number,
+  isOnline: Boolean,
+  // ... additional fields for slots, ratings, etc.
 }
 ```
 
-### **Frontend Component Structure**
-- Pages live in `src/pages/Patient/` or `src/pages/Doctor/`
-- Patient components in `src/patientComponent/`; Doctor components in `src/doctorComponent/`
-- Protected routes wrapped with `<DoctorProtectedWrapper>` or `<PatientProtectedWrapper>`
-- Always check `typeof localStorage.getItem('token')` before API calls (not in context yet)
+### **Patient Model** (`Models/patient.model.js`)
+```javascript
+{
+  name: String (required),
+  email: String (required, unique),
+  phone: String (required),
+  password: String (hashed),
+  age: Number,
+  gender: enum["male", "female", "other"],
+  bloodGroup: String,
+  height: Number,
+  weight: Number,
+  medicalHistory: [String],
+  // ... additional fields
+}
+```
+
+### **Appointment Model** (`Models/appointment.model.js`)
+```javascript
+{
+  patient: ObjectId (ref: Patient),
+  doctor: ObjectId (ref: Doctor),
+  type: enum["in-person", "video", "chat", "voice"],
+  scheduledAt: Date,
+  date: String (YYYY-MM-DD),
+  startTime: String (HH:mm),
+  endTime: String (HH:mm),
+  slotId: ObjectId,
+  fee: Number,
+  status: enum["pending", "confirmed", "completed", "cancelled"],
+  // ... timestamps
+}
+```
+
+### **ChatRoom Model** (`Models/ChatRoom.js`)
+```javascript
+{
+  roomId: String (unique),
+  doctorId: String,
+  patientId: String,
+  lastActiveAt: Date,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
 
 ---
 
-## 🔗 Integration Touchpoints
+## 🔐 Security Considerations
 
-### **Cross-Component Data Flow**
-- **Token Passing**: Axios interceptor should add `Authorization` header (check utils/socket.js pattern)
-- **Socket.io in React**: Frontend imports socket from `utils/socket.js`; events bound in `useEffect` with cleanup
-- **Form Submission**: Use Axios to POST; handle errors by checking `response.success` flag
-
-### **Common Gotchas**
-1. **Slot Time Zones**: Always use UTC or fixed timezone strings (YYYY-MM-DD, HH:mm)
-2. **Doctor vs Patient Auth**: Two separate JWT secrets/middleware—don't mix tokens
-3. **Socket.io Rooms**: Room ID must be identical on client and server (spelling matters!)
-4. **Modal Components**: Check for prop drilling (e.g., `AppointmentDeatilsModel` expects specific props)
-5. **Email Verification**: `VerifyEmailPage` exists but email service not fully configured
+- ✅ **Password Hashing**: Bcrypt with salt rounds
+- ✅ **JWT Tokens**: Secure token-based authentication
+- ✅ **CORS**: Restricted to frontend URL only
+- ✅ **Rate Limiting**: Login attempts throttled
+- ✅ **Environment Variables**: Sensitive data in `.env` only
+- ✅ **Input Validation**: Middleware validation before DB operations
+- ⚠️ **HTTPS**: Configure in production
+- ⚠️ **MongoDB**: Use connection string with authentication
 
 ---
 
-## 📚 File Reference for Common Tasks
+## 🤝 Contributing
 
-| Task | File(s) |
-|------|---------|
-| Add doctor API endpoint | `Routes/doctorRoutes.js` + `Controllers/doctorController.js` |
-| Add appointment logic | `Routes/appointmentRoutes.js` + `Controllers/appointmentContoller.js` + `Models/appointment.model.js` |
-| Handle Socket.io events | `Services/socket.js` |
-| Patient login flow | `Pages/Patient/PatientRegister.jsx` + `contexts/PatientContext.jsx` |
-| Create booking UI | `Pages/Patient/AppointmentBooking.jsx` + `patientComponent/DoctorCard.jsx` |
-| Add rate limiting | `middlewares/doctorMiddleware.js` (see `doctorLoginLimiter`) |
+1. Create a feature branch: `git checkout -b feature/your-feature`
+2. Commit changes: `git commit -m "Add feature description"`
+3. Push to branch: `git push origin feature/your-feature`
+4. Create a Pull Request
 
 ---
 
-## 🧪 Testing Notes
-- No dedicated test framework configured (`"test": "echo \"Error: no test specified\"`)
-- Manual testing: Start both servers, use Postman/Thunder Client for API
-- Socket.io testing: Open two browser windows with different user roles
-- Clear localStorage between tests if auth state persists
+## 📝 License
+
+This project is part of a hackathon submission.
 
 ---
 
-## 📦 Dependencies to Know
-- **bcrypt**: Password hashing (sync operations only in production code)
-- **jsonwebtoken**: Always verify `exp` claim; tokens stored in localStorage (security: use httpOnly in production)
-- **mongoose**: Connection pooling handled automatically; ensure `.env` has valid URI
-- **socket.io**: CORS already configured in `server.js`; reconnection enabled
-- **tailwindcss**: Utility-first; check `tailwind.config.js` for custom colors
+## 👥 Support & Contact
+
+For issues or questions:
+- GitHub Issues: [ArogYam Repository](https://github.com/ankitkumar-09/ArogYam)
+- Email: [Project Maintainer]
 
 ---
 
-## 🎯 Immediate Productivity Tips
-1. **Before coding**: Check if patient/doctor routes follow the same pattern (they usually do)
-2. **Schema changes**: Always test with MongoDB shell or Mongoose REPL before controller logic
-3. **Socket debugging**: Check `socket.id` and `socket.rooms` in browser DevTools
-4. **API contracts**: Match request/response shape in both backend controller and frontend caller
-5. **Context updates**: Call context setters immediately after API success to avoid UI lag
+## 🎓 Learning Resources
+
+- [Express.js Documentation](https://expressjs.com/)
+- [MongoDB & Mongoose](https://mongoosejs.com/)
+- [React Documentation](https://react.dev/)
+- [Socket.io Guide](https://socket.io/docs/)
+- [TailwindCSS](https://tailwindcss.com/)
+- [Vite](https://vitejs.dev/)
 
 ---
 
